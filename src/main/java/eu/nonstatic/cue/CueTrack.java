@@ -9,6 +9,8 @@ import java.util.List;
 @Data
 public class CueTrack implements CueEntity {
 
+  public static final String KEYWORD = CueWords.TRACK;
+
   private final int number;
   private final String type; // ex: AUDIO
 

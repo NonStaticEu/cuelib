@@ -5,6 +5,8 @@ import lombok.Getter;
 @Getter
 public class CueIndex implements CueEntity {
 
+  public static final String KEYWORD = CueWords.INDEX;
+
   private final int number;
 
   private final int minutes;

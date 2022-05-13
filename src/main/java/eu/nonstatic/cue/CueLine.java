@@ -4,6 +4,8 @@ import lombok.Getter;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Getter
 class CueLine {
@@ -14,6 +16,8 @@ class CueLine {
   private final String tail;
   private final List<String> tailParts;
 
+  private static final Pattern splitter = Pattern.compile("[ ]+");
+
   CueLine(int lineNumber, String line) {
     this.lineNumber = lineNumber;
     this.raw = line.trim();
@@ -22,7 +26,7 @@ class CueLine {
     if (sep >= 0) {
       this.keyword = this.raw.substring(0, sep).toUpperCase(Locale.ROOT);
       this.tail = this.raw.substring(sep + 1).trim();
-      this.tailParts = List.of(this.tail.split("[ ]+"));
+      this.tailParts = splitter.splitAsStream(this.tail).collect(Collectors.toList());
     } else {
       this.keyword = this.raw;
       this.tail = null;
