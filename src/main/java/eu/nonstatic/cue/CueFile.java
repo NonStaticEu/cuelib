@@ -33,4 +33,9 @@ public class CueFile implements CueEntity {
   public List<CueIndex> getIndexes() {
     return tracks.stream().flatMap(track -> track.getIndexes().stream()).collect(Collectors.toList());
   }
+
+  @Override
+  public String toString() {
+    return String.format("%s \"%s\" %s", KEYWORD, file, format);
+  }
 }

@@ -56,4 +56,9 @@ public class CueTrack implements CueEntity {
   public void addOther(CueOther other) {
     others.add(other);
   }
+
+  @Override
+  public String toString() {
+    return String.format("%s %02d, %s", KEYWORD, number, type);
+  }
 }
