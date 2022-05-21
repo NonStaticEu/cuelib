@@ -16,7 +16,4 @@ public interface CueWords {
   String POSTGAP = "POSTGAP";
   String FLAGS = "FLAGS";
   String REMARK = "REM";
-
-  // Non-standard extras
-  String ARTIST = "ARTIST";
 }

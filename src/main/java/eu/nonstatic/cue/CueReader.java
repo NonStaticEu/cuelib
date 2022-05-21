@@ -74,9 +74,6 @@ public class CueReader implements CueWords {
             case PERFORMER:
               disc.setPerformer(unquote(tail));
               break;
-            case ARTIST: // nonstandard
-              disc.setArtist(unquote(tail));
-              break;
             case SONGWRITER:
               disc.setSongwriter(unquote(tail));
               break;
@@ -94,7 +91,8 @@ public class CueReader implements CueWords {
               disc.addRemark(readRemark(line));
               break;
             default:
-              log.warn("{}: Unknown line: {}", context.getPath(), line.getRaw());
+              log.warn("{}: Unknown disc line: {}", context.getPath(), line.getRaw());
+              disc.addOther(readOther(line));
           }
         } else {
           log.warn("{}: No keyword on line {}: {}", context.getPath(), line.getLineNumber(), line.getRaw());
@@ -114,10 +112,14 @@ public class CueReader implements CueWords {
     if (sep >= 0) {
       String type = tail.substring(0, sep);
       String content = tail.substring(sep + 1).trim();
-      return new CueRemark(type, content);
+      return new CueRemark(type, unquote(content));
     } else {
-      return new CueRemark(null, tail);
+      return new CueRemark(null, unquote(tail));
     }
+  }
+
+  private static CueOther readOther(CueLine line) {
+    return new CueOther(line.getKeyword(), unquote(line.getTail()));
   }
 
   private static CueFile readFile(String fileName, String fileFormat, CueLineReader reader, CueContext context) throws IOException {
@@ -180,9 +182,6 @@ public class CueReader implements CueWords {
             case PERFORMER:
               track.setPerformer(unquote(tail));
               break;
-            case ARTIST: // nonstandard
-              track.setArtist(unquote(tail));
-              break;
             case SONGWRITER:
               track.setSongwriter(unquote(tail));
               break;
@@ -203,9 +202,7 @@ public class CueReader implements CueWords {
               break;
             default:
               log.warn("{}: Unknown track line: {}", context.getPath(), line.getRaw());
-              // maybe belongs to the upper level
-              reader.reset();
-              return track;
+              track.addOther(readOther(line));
           }
         } else {
           log.warn("{}: No keyword on line {}: {}", context.getPath(), line.getLineNumber(), line.getRaw());
