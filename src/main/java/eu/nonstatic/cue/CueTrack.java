@@ -7,7 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Data
-public class CueTrack implements CueEntity {
+public class CueTrack extends CueEntity {
 
   public static final String KEYWORD = CueWords.TRACK;
 
@@ -22,7 +22,7 @@ public class CueTrack implements CueEntity {
   private String pregap;
   private final List<CueIndex> indexes = new ArrayList<>();
   private String postgap;
-  private List<String> flags;
+  private List<CueFlag> flags;
 
   private final List<CueRemark> remarks = new ArrayList<>();
   private final List<CueOther> others = new ArrayList<>();
@@ -62,7 +62,7 @@ public class CueTrack implements CueEntity {
   }
 
   @Override
-  public String toString() {
-    return String.format("%s %02d, %s", KEYWORD, number, type);
+  public String toSheetLine() {
+    return String.format("%s %02d %s", KEYWORD, number, type);
   }
 }

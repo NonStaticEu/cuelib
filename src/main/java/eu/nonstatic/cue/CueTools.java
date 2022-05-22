@@ -73,6 +73,10 @@ public class CueTools {
   }
 
 
+  public static String quote(String str) {
+    return str != null ? '"' + str + '"' : "\"\"";
+  }
+
   public static String unquote(String str) {
     if (str != null) {
       int start = str.startsWith("\"") ? 1 : 0;

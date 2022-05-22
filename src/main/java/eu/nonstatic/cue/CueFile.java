@@ -3,13 +3,12 @@ package eu.nonstatic.cue;
 import lombok.Data;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Data
-public class CueFile implements CueEntity {
+public class CueFile extends CueEntity {
 
   public static final String KEYWORD = CueWords.FILE;
 
@@ -57,7 +56,7 @@ public class CueFile implements CueEntity {
   }
 
   @Override
-  public String toString() {
+  public String toSheetLine() {
     return String.format("%s \"%s\" %s", KEYWORD, file, format);
   }
 }
