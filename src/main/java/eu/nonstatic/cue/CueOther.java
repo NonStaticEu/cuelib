@@ -1,14 +1,14 @@
 package eu.nonstatic.cue;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 
 import static eu.nonstatic.cue.CueTools.quote;
 
 /**
  * For non-standard lines (eg ARTIST or REM-less GENRE)
  */
-@Getter
+@Data
 @AllArgsConstructor
 public class CueOther extends CueEntity {
 
