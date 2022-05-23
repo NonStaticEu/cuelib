@@ -1,10 +1,12 @@
 package eu.nonstatic.cue;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
-public class CueIndex extends CueEntity {
+@EqualsAndHashCode
+public class CueIndex implements CueEntity, Comparable<CueIndex> {
 
   public static final String KEYWORD = CueWords.INDEX;
 
@@ -73,7 +75,17 @@ public class CueIndex extends CueEntity {
   }
 
   @Override
+  public int compareTo(CueIndex cueIndex) {
+    return Integer.compare(number, cueIndex.number);
+  }
+
+  @Override
   public String toSheetLine() {
     return String.format("%s %02d %s", KEYWORD, number, timeCode.toString());
+  }
+
+  @Override
+  public String toString() {
+    return toSheetLine();
   }
 }

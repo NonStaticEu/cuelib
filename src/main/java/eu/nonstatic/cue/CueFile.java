@@ -1,24 +1,25 @@
 package eu.nonstatic.cue;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Data
-public class CueFile extends CueEntity {
+@Getter
+@Setter
+@EqualsAndHashCode
+public class CueFile extends FileAndFormat implements CueEntity {
 
   public static final String KEYWORD = CueWords.FILE;
 
-  private final String file;
-  private final String format; // MP3, AIFF, WAVE, FLAC, BIN
-
   private final List<CueTrack> tracks;
 
-  CueFile(String file, String format) {
-    this(file, format, new ArrayList<>()); // tracks may remain empty, some files may be declared as extra resources
+  CueFile(FileAndFormat ff) {
+    this(ff.file, ff.format, new ArrayList<>()); // tracks may remain empty, some files may be declared as extra resources
   }
 
   public CueFile(String file, String format, CueTrack track) {
@@ -26,9 +27,12 @@ public class CueFile extends CueEntity {
   }
 
   public CueFile(String file, String format, List<CueTrack> tracks) {
-    this.file = file;
-    this.format = format;
+    super(file, format);
     this.tracks = new ArrayList<>(tracks);
+  }
+
+  FileAndFormat getFileAndFormat() {
+    return new FileAndFormat(file, format);
   }
 
   public List<CueTrack> getTracks() {
@@ -44,8 +48,14 @@ public class CueFile extends CueEntity {
   }
 
   public void addTrack(CueTrack track) {
+    // TODO check numbering
     tracks.add(track);
   }
+
+  public boolean hasHiddenTrack() {
+    return !tracks.isEmpty() && tracks.get(0).hasHiddenTrack();
+  }
+
 
   public List<CueIndex> getIndexes() {
     return tracks.stream().flatMap(track -> track.getIndexes().stream()).collect(Collectors.toList());
@@ -58,5 +68,10 @@ public class CueFile extends CueEntity {
   @Override
   public String toSheetLine() {
     return String.format("%s \"%s\" %s", KEYWORD, file, format);
+  }
+
+  @Override
+  public String toString() {
+    return toSheetLine();
   }
 }

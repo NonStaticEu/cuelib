@@ -1,16 +1,20 @@
 package eu.nonstatic.cue;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 import static eu.nonstatic.cue.CueTools.quote;
 
 /**
  * For non-standard lines (eg ARTIST or REM-less GENRE)
  */
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
-public class CueOther extends CueEntity {
+@EqualsAndHashCode
+public class CueOther implements CueEntity {
 
   private final String keyword;
   private final String value;
@@ -22,5 +26,10 @@ public class CueOther extends CueEntity {
       sb.append(' ').append(quote(value));
     }
     return sb.toString();
+  }
+
+  @Override
+  public String toString() {
+    return toSheetLine();
   }
 }
