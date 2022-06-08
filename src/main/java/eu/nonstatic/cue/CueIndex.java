@@ -56,6 +56,10 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
     number++;
   }
 
+  void decrNumberUnsafe() {
+    number--;
+  }
+
   public int getMinutes() {
     return timeCode.getMinutes();
   }
