@@ -19,6 +19,10 @@ public class CueOther implements CueEntity {
   private final String keyword;
   private final String value;
 
+  public CueOther deepCopy() {
+    return new CueOther(keyword, value);
+  }
+
   @Override
   public String toSheetLine() {
     StringBuilder sb = new StringBuilder(keyword);

@@ -10,11 +10,13 @@ import java.util.stream.Collectors;
 
 @Getter
 @Setter
-@EqualsAndHashCode(callSuper = true)
-public class CueFile extends FileAndFormat implements CueEntity, CueIterable<CueTrack> {
+@EqualsAndHashCode
+public class CueFile implements CueEntity, CueIterable<CueTrack> {
 
   public static final String KEYWORD = CueWords.FILE;
 
+  protected String file;
+  protected String format; // MP3, AIFF, WAVE, FLAC, BIN
   private final ArrayList<CueTrack> tracks;
 
   CueFile(FileAndFormat ff) {
@@ -22,7 +24,8 @@ public class CueFile extends FileAndFormat implements CueEntity, CueIterable<Cue
   }
 
   public CueFile(String file, String format) {
-    super(file, format);
+    this.file = file;
+    this.format = format;
     this.tracks = new ArrayList<>(12);
   }
 
@@ -35,7 +38,13 @@ public class CueFile extends FileAndFormat implements CueEntity, CueIterable<Cue
     this.tracks.addAll(tracks);
   }
 
-  FileAndFormat getFileAndFormat() {
+  public CueFile deepCopy() {
+    CueFile newFile = new CueFile(toFileAndFormat());
+    tracks.forEach(track -> track.deepCopy());
+    return newFile;
+  }
+
+  FileAndFormat toFileAndFormat() {
     return new FileAndFormat(file, format);
   }
 
@@ -70,11 +79,15 @@ public class CueFile extends FileAndFormat implements CueEntity, CueIterable<Cue
     return tracks.isEmpty() ? Optional.empty() : Optional.of(tracks.get(tracks.size() - 1));
   }
 
-  public int getNextTrackNumber() {
+  /**
+   * If tracks is empty we have no way to tell if there aren't other files/track before this one, thus can't tell whether 1 would be a legit number
+   * @return the next track number (notwithstanding whichever other CueFile might be behind this one)
+   */
+  public OptionalInt getNextTrackNumber() {
     return getLastTrack()
-        .map(track -> track.getNumber() + 1)
-        .orElse(
-            CueTrack.TRACK_ONE); // if tracks is empty we have no way to tell if there aren't other files/track before this one, thus if 1 is a legit number
+        .stream()
+        .mapToInt(track -> track.getNumber() + 1)
+        .findAny();
   }
 
   public int getTrackCount() {
@@ -84,38 +97,57 @@ public class CueFile extends FileAndFormat implements CueEntity, CueIterable<Cue
   /**
    * @return splits this CueFile into as many CueFiles as tracks
    */
-  public List<CueFile> splitTracks() {
+  public List<CueFile> split() {
     return tracks.stream().map(track -> new CueFile(file, format, track)).collect(Collectors.toList());
   }
 
-  public synchronized void addTrack(CueTrack newTrack) {
-    int nextNumber = getNextTrackNumber();
+  public CueTrack addTrack(CueTrack newTrack) {
+    return addTrack(newTrack, false);
+  }
+
+
+  public synchronized CueTrack addTrack(CueTrack newTrack, boolean renumber) {
+    if(tracks.contains(newTrack)) {
+      throw new IllegalArgumentException("The file already contains this track");
+    }
+
+    if(newTrack.hasNumber() && renumber) {
+      newTrack = newTrack.deepCopy(null);
+    }
+
+    // TODO not satisfying, one may be able to inject several tracks 1 in several files
+    int nextTrackNumber = getNextTrackNumber().orElse(CueTrack.TRACK_ONE);
 
     if (newTrack.hasNumber()) {
       int newNumber = newTrack.getNumber();
-      if (newNumber == nextNumber) {
-        tracks.add(newTrack);
-      } else if (newNumber > nextNumber) {
-        throw new IllegalArgumentException("Track number " + newNumber + " is out of range [" + CueTrack.TRACK_ONE + "," + nextNumber + "]");
-      } else { // now we're sure 1 =< newNumber =< lastNumber
-        int i = 0;
-        for (; i < tracks.size(); i++) {
-          int currentNumber = tracks.get(i).getNumber();
-          if (currentNumber == newNumber) {
-            break;
+      if (newNumber > nextTrackNumber) {
+        throw new IllegalArgumentException("Track number " + newNumber + " is out of range [" + CueTrack.TRACK_ONE + "," + nextTrackNumber + "]");
+      } else {
+        CueTrack newTrackCopy = newTrack.deepCopy();
+        if (newNumber == nextTrackNumber) { // it's chaining
+          tracks.add(newTrackCopy); // fast-track version of the else clause below
+        } else { // now we're sure 1 =< newNumber =< lastNumber
+          int i = 0;
+          for (; i < tracks.size(); i++) {
+            int currentNumber = tracks.get(i).getNumber();
+            if (currentNumber == newNumber) {
+              break;
+            }
+          }
+
+          tracks.add(i, newTrackCopy);
+
+          // shift the remaining tracks
+          while (++i < tracks.size()) {
+            tracks.get(i).number++;
           }
         }
-
-        tracks.add(i, newTrack);
-
-        // shift the remaining tracks
-        while (++i < tracks.size()) {
-          tracks.get(i).incrNumberUnsafe();
-        }
+        return newTrackCopy;
       }
     } else {
-      newTrack.setNumber(nextNumber);
-      tracks.add(newTrack);
+      newTrack.setNumberOnce(nextTrackNumber);
+      tracks.add(newTrack); // it's OK to store it without copying because it's obviously not part of a file yet
+      return newTrack;
     }
   }
 
@@ -128,20 +160,20 @@ public class CueFile extends FileAndFormat implements CueEntity, CueIterable<Cue
     if (number < CueTrack.TRACK_ONE || number > lastNumber) {
       throw new IllegalArgumentException("Track number " + number + " is out of range [" + CueTrack.TRACK_ONE + "," + lastNumber + "]");
     } else {
-      CueTrack track = null;
+      CueTrack targetTrack = null;
 
       Iterator<CueTrack> it = tracks.iterator();
       while (it.hasNext()) {
-        track = it.next();
-        if (track.getNumber() == number) {
+        targetTrack = it.next();
+        if (targetTrack.getNumber() == number) {
           it.remove();
           break;
         }
       }
       // shift the remaining tracks
-      it.forEachRemaining(CueTrack::decrNumberUnsafe);
+      it.forEachRemaining(track -> track.number--);
 
-      return track;
+      return targetTrack;
     }
   }
 
