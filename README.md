@@ -1,2 +1,2 @@
 # cuelib
-A simple java cue file reader lib (and maybe one day wrtier too)
+A simple java eu.nonstatic.cue file reader lib (and maybe one day writer too)
