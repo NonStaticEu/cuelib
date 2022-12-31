@@ -119,7 +119,31 @@ public class CueFile extends FileAndFormat implements CueEntity, CueIterable<Cue
     }
   }
 
-  //TODO remove track
+  public CueTrack removeTrack(int number) {
+    if (tracks.isEmpty()) {
+      throw new IllegalArgumentException("Track list is empty");
+    }
+
+    int lastNumber = getLastTrack().get().getNumber();
+    if (number < CueTrack.TRACK_ONE || number > lastNumber) {
+      throw new IllegalArgumentException("Track number " + number + " is out of range [" + CueTrack.TRACK_ONE + "," + lastNumber + "]");
+    } else {
+      CueTrack track = null;
+
+      Iterator<CueTrack> it = tracks.iterator();
+      while (it.hasNext()) {
+        track = it.next();
+        if (track.getNumber() == number) {
+          it.remove();
+          break;
+        }
+      }
+      // shift the remaining tracks
+      it.forEachRemaining(CueTrack::decrNumberUnsafe);
+
+      return track;
+    }
+  }
 
   @Override
   public CueIterator<CueTrack> iterator() {

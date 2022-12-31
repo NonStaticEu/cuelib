@@ -4,4 +4,3 @@ Cue files were invented by Jeff Arnold for CDRWIN
 
 ## TODO
 * overall consistency check
-* track/index removal

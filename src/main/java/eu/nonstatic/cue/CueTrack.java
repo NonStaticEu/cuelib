@@ -68,6 +68,10 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     number++;
   }
 
+  void decrNumberUnsafe() {
+    number--;
+  }
+
 
   public List<CueIndex> getIndexes() {
     return Collections.unmodifiableList(indexes);
@@ -143,7 +147,32 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     }
   }
 
-  //TODO remove index
+  public CueIndex removeIndex(int number) {
+    if (indexes.isEmpty()) {
+      throw new IllegalArgumentException("Index list is empty");
+    }
+
+    int firstNumber = getFirstIndex().get().getNumber();
+    int lastNumber = getLastIndex().get().getNumber();
+    if (number < firstNumber || number > lastNumber) {
+      throw new IllegalArgumentException("Index number " + number + " is out of range [" + firstNumber + "," + lastNumber + "]");
+    } else {
+      CueIndex index = null;
+
+      Iterator<CueIndex> it = indexes.iterator();
+      while (it.hasNext()) {
+        index = it.next();
+        if (index.getNumber() == number) {
+          it.remove();
+          break;
+        }
+      }
+      // shift the remaining tracks
+      it.forEachRemaining(CueIndex::decrNumberUnsafe);
+
+      return index;
+    }
+  }
 
   @Override
   public CueIterator<CueIndex> iterator() {
