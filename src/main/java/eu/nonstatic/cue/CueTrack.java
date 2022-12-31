@@ -16,7 +16,6 @@ public class CueTrack implements CueEntity {
 
   private String title;
   private String performer;
-  private String artist; // nonstandard
   private String songwriter;
   private String isrc;
 
@@ -26,6 +25,7 @@ public class CueTrack implements CueEntity {
   private List<String> flags;
 
   private final List<CueRemark> remarks = new ArrayList<>();
+  private final List<CueOther> others = new ArrayList<>();
 
   public CueTrack(int number, String type) {
     this.number = number;
@@ -46,5 +46,14 @@ public class CueTrack implements CueEntity {
 
   public void addRemark(CueRemark remark) {
     remarks.add(remark);
+  }
+
+
+  public List<CueOther> getOthers() {
+    return Collections.unmodifiableList(others);
+  }
+
+  public void addOther(CueOther other) {
+    others.add(other);
   }
 }
