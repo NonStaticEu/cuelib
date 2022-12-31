@@ -9,33 +9,35 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static eu.nonstatic.cue.CueTools.isCueFile;
 import static eu.nonstatic.cue.CueTools.unquote;
+import static java.util.stream.Collectors.toList;
 
 @Slf4j
-public class CueReader implements CueWords {
+public class CueSheetReader implements CueWords {
 
-  public static CueDisc readCue(File cueFile) throws IOException {
-    return readCue(cueFile.toPath());
+  public static CueDisc readCueSheet(File cueFile) throws IOException {
+    return readCueSheet(cueFile.toPath());
   }
 
-  public static CueDisc readCue(File cueFile, Charset charset) throws IOException {
-    return readCue(cueFile.toPath(), charset);
+  public static CueDisc readCueSheet(File cueFile, Charset charset) throws IOException {
+    return readCueSheet(cueFile.toPath(), charset);
   }
 
-  public static CueDisc readCue(Path cueFile) throws IOException {
+  public static CueDisc readCueSheet(Path cueFile) throws IOException {
     checkCueExtension(cueFile);
     try (BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(cueFile))) {
       CueContext context = new CueTools().detectEncoding(cueFile.toString(), bis); // the stream is reset after detection
-      return readCue(bis, context);
+      return readCueSheet(bis, context);
     }
   }
 
-  public static CueDisc readCue(Path cueFile, Charset charset) throws IOException {
+  public static CueDisc readCueSheet(Path cueFile, Charset charset) throws IOException {
     checkCueExtension(cueFile);
     try (InputStream inputStream = Files.newInputStream(cueFile)) {
-      return readCue(inputStream, new CueContext(cueFile, charset));
+      return readCueSheet(inputStream, new CueContext(cueFile, charset));
     }
   }
 
@@ -45,39 +47,39 @@ public class CueReader implements CueWords {
     }
   }
 
-  public static CueDisc readCue(InputStream inputStream, CueContext context) throws IOException {
+  public static CueDisc readCueSheet(InputStream inputStream, CueContext context) throws IOException {
     try (CueLineReader cueLineReader = new CueLineReader(inputStream, context.getCharset())) {
-      return readCue(cueLineReader, context);
+      return readCueSheet(cueLineReader, context);
     }
   }
 
-  public static CueDisc readCue(Reader reader, CueContext context) throws IOException {
+  public static CueDisc readCueSheet(Reader reader, CueContext context) throws IOException {
     try (CueLineReader cueLineReader = new CueLineReader(reader, context.getCharset())) {
-      return readCue(cueLineReader, context);
+      return readCueSheet(cueLineReader, context);
     }
   }
 
-  public static CueDisc readCue(CharSequence[] lines, CueContext context) throws IOException {
+  public static CueDisc readCueSheet(CharSequence[] lines, CueContext context) throws IOException {
     Charset charset = context.getCharset();
     byte[] bytes = String.join("\n", lines)
         .getBytes(charset);
-    return readCue(bytes, context);
+    return readCueSheet(bytes, context);
   }
 
-  public static CueDisc readCue(Iterable<? extends CharSequence> lines, CueContext context) throws IOException {
+  public static CueDisc readCueSheet(Iterable<? extends CharSequence> lines, CueContext context) throws IOException {
     Charset charset = context.getCharset();
     byte[] bytes = String.join("\n", lines)
         .getBytes(charset);
-    return readCue(bytes, context);
+    return readCueSheet(bytes, context);
   }
 
-  private static CueDisc readCue(byte[] bytes, CueContext context) throws IOException {
+  public static CueDisc readCueSheet(byte[] bytes, CueContext context) throws IOException {
     try (CueLineReader cueLineReader = new CueLineReader(new ByteArrayInputStream(bytes), context.getCharset())) {
-      return readCue(cueLineReader, context);
+      return readCueSheet(cueLineReader, context);
     }
   }
 
-  private static CueDisc readCue(CueLineReader cueLineReader, CueContext context) throws IOException {
+  public static CueDisc readCueSheet(CueLineReader cueLineReader, CueContext context) throws IOException {
     CueDisc disc = new CueDisc(context.getPath(), context.getCharset());
 
     CueLine line;
@@ -217,7 +219,7 @@ public class CueReader implements CueWords {
               track.setPostgap(tail);
               break;
             case FLAGS:
-              track.setFlags(line.getTailParts());
+              track.setFlags(readFlags(line));
               break;
             case CueRemark.KEYWORD:
               track.addRemark(readRemark(line));
@@ -236,6 +238,9 @@ public class CueReader implements CueWords {
     return track; // for the last track
   }
 
+  private static List<CueFlag> readFlags(CueLine line) {
+    return line.getTailParts().stream().map(CueFlag::flagOf).collect(toList());
+  }
 
   private static CueIndex readIndex(CueLine cueLine) {
     int number = Integer.parseInt(cueLine.getTailWord(0));
@@ -250,17 +255,17 @@ public class CueReader implements CueWords {
     private String file;
     private String format;
 
-    static FileAndFormat of(@NonNull String tail) {
+    static FileAndFormat of(@NonNull String fileAndFormat) {
       String file, format;
-      int sep = tail.lastIndexOf(' ');
+      int sep = fileAndFormat.lastIndexOf(' ');
       if (sep >= 0) {
-        file = tail.substring(0, sep).trim();
-        format = tail.substring(sep + 1);
+        file = fileAndFormat.substring(0, sep).trim();
+        format = fileAndFormat.substring(sep + 1);
       } else {
-        file = tail;
+        file = fileAndFormat;
         format = null;
       }
-      return new FileAndFormat(file, format);
+      return new FileAndFormat(unquote(file), format);
     }
   }
 }

@@ -3,7 +3,7 @@ package eu.nonstatic.cue;
 import lombok.Getter;
 
 @Getter
-public class CueIndex implements CueEntity {
+public class CueIndex extends CueEntity {
 
   public static final String KEYWORD = CueWords.INDEX;
 
@@ -31,7 +31,7 @@ public class CueIndex implements CueEntity {
   }
 
   @Override
-  public String toString() {
+  public String toSheetLine() {
     return String.format("%s %02d %s", KEYWORD, number, getTimeCode());
   }
 }

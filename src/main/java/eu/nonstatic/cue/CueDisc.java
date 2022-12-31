@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets
  */
 @Data
-public class CueDisc implements CueEntity {
+public class CueDisc {
 
   private final String path;
   private final Charset charset;
