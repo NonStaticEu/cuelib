@@ -11,8 +11,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * https://en.wikipedia.org/wiki/Cue_sheet_(computing) https://wiki.hydrogenaud.io/index.php?title=Cue_sheet
- * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets Regards to Jeff Arnold
+ * https://en.wikipedia.org/wiki/Cue_sheet_(computing)
+ * https://wiki.hydrogenaud.io/index.php?title=Cue_sheet
+ * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets
+ * Regards to Jeff Arnold
  */
 @Getter
 @Setter
@@ -55,6 +57,17 @@ public class CueDisc implements CueIterable<CueFile> {
     return Collections.unmodifiableList(files);
   }
 
+  /**
+   * @return the first track on this file. It may not be track 1 on a cue sheet
+   */
+  public Optional<CueFile> getFirstFile() {
+    return files.isEmpty() ? Optional.empty() : Optional.of(files.get(0));
+  }
+
+  public Optional<CueFile> getLastFile() {
+    return files.isEmpty() ? Optional.empty() : Optional.of(files.get(files.size() - 1));
+  }
+
   public int getFileCount() {
     return (int) files.stream().map(CueFile::getFile).distinct().count();
   }
@@ -64,10 +77,31 @@ public class CueDisc implements CueIterable<CueFile> {
     return new CueIterator(files);
   }
 
-  public void addFile(CueFile file) {
-    // TODO check overall tracks numbering
-    files.add(file);
+  public CueFile addFile(CueFile newFile) {
+    return addFile(newFile, false);
   }
+
+
+  public synchronized CueFile addFile(CueFile newFile, boolean renumber) {
+    if(files.contains(newFile)) {
+      throw new IllegalArgumentException("The file already contains this track");
+    }
+
+    int nextTrackNumber = getNextTrackNumber();
+    Optional<CueTrack> firstNewTrack = newFile.getFirstTrack();
+    if (renumber || firstNewTrack.isEmpty() || firstNewTrack.get().getNumber() == nextTrackNumber) {
+      CueFile newFileCopy = new CueFile(newFile.toFileAndFormat());
+      for (CueTrack newTrack : newFile) {
+        newFileCopy.addTrack(newTrack, renumber);
+      }
+      files.add(newFileCopy);
+      return newFileCopy;
+    } else {
+      String latestTrackNumber = getLastFile().flatMap(file -> file.getLastTrack()).map(t -> t.getNumber().toString()).orElse("<START>");
+      throw new IllegalStateException("New file's first track " + firstNewTrack.get().getNumber() + " doesn't chain with the latest disc's track " + latestTrackNumber);
+    }
+  }
+
 
   public List<CueRemark> getRemarks() {
     return Collections.unmodifiableList(remarks);
@@ -77,8 +111,8 @@ public class CueDisc implements CueIterable<CueFile> {
     remarks.add(remark);
   }
 
-  public List<CueFile> splitTracks() {
-    return files.stream().flatMap(file -> file.splitTracks().stream()).collect(Collectors.toList());
+  public List<CueFile> splitFiles() {
+    return files.stream().flatMap(file -> file.split().stream()).collect(Collectors.toList());
   }
 
   /**
@@ -87,7 +121,7 @@ public class CueDisc implements CueIterable<CueFile> {
   public Collection<CueFile> groupTracks() {
     Map<FileAndFormat, CueFile> map = new LinkedHashMap<>();
     for (CueFile file : files) {
-      CueFile groupFile = map.computeIfAbsent(file.getFileAndFormat(), ff -> new CueFile(ff));
+      CueFile groupFile = map.computeIfAbsent(file.toFileAndFormat(), ff -> new CueFile(ff));
       file.getTracks().forEach(cueTrack -> groupFile.addTrack(cueTrack));
     }
     return map.values();
@@ -118,6 +152,12 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public int getTrackCount() {
     return files.stream().mapToInt(CueFile::getTrackCount).sum();
+  }
+
+  public int getNextTrackNumber() {
+    return getLastFile()
+        .map(cueTracks -> cueTracks.getNextTrackNumber().orElse(CueTrack.TRACK_ONE))
+        .orElse(CueTrack.TRACK_ONE);
   }
 
   public List<CueIndex> getIndexes() {

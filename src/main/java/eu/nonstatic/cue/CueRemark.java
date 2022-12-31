@@ -19,6 +19,9 @@ public class CueRemark implements CueEntity {
   private final String tag; // COMMENT, DISCID, UPC...
   private final String value;
 
+  public CueRemark deepCopy() {
+    return new CueRemark(tag, value);
+  }
 
   public boolean isComment() {
     return TAG_COMMENT.equalsIgnoreCase(tag);

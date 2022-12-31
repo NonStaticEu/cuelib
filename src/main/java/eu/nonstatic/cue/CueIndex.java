@@ -18,9 +18,8 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
   public static final int INDEX_TRACK_START = 1;
   public static final Comparator<Integer> COMPARATOR = Comparator.naturalOrder();
 
-  private Integer number; // 1 is the track start, 0 is the pregap.
+  protected Integer number; // 1 is the track start, 0 is the pregap.
   private TimeCode timeCode;
-
 
   public CueIndex(Integer number, int minutes, int seconds, int frames) {
     this(number, new TimeCode(minutes, seconds, frames));
@@ -28,7 +27,7 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
 
   public CueIndex(Integer number, TimeCode timeCode) {
     if (number != null) {
-      setNumber(number);
+      setNumberOnce(number);
     }
     this.timeCode = timeCode;
   }
@@ -37,12 +36,19 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
     this(number, TimeCode.parse(timeCode));
   }
 
+  public CueIndex deepCopy() {
+    return deepCopy(number);
+  }
+
+  public CueIndex deepCopy(Integer number) {
+    return new CueIndex(number, timeCode);
+  }
 
   public boolean hasNumber() {
     return number != null;
   }
 
-  public void setNumber(int number) {
+  public void setNumberOnce(int number) {
     if (number < 0) {
       throw new IllegalArgumentException("Index number must be zero or positive");
     } else if (this.number != null) {
@@ -50,14 +56,6 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
     } else {
       this.number = number;
     }
-  }
-
-  void incrNumberUnsafe() {
-    number++;
-  }
-
-  void decrNumberUnsafe() {
-    number--;
   }
 
   public int getMinutes() {

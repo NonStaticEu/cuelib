@@ -16,7 +16,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
   public static final Comparator<Integer> COMPARATOR = Comparator.naturalOrder();
 
 
-  private Integer number;
+  protected Integer number;
   private String type; // ex: AUDIO
 
   private String title;
@@ -34,7 +34,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
 
   public CueTrack(Integer number, String type) {
     if (number != null) {
-      setNumber(number);
+      setNumberOnce(number);
     }
     this.type = type;
     this.indexes = new ArrayList<>(2);
@@ -49,12 +49,30 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     this.indexes.addAll(indexes);
   }
 
+  public CueTrack deepCopy() {
+    return deepCopy(number);
+  }
+
+  public CueTrack deepCopy(Integer newNumber) {
+    CueTrack newTrack = new CueTrack(newNumber, type);
+    newTrack.title = title;
+    newTrack.performer = performer;
+    newTrack.songwriter = songwriter;
+    newTrack.isrc = isrc;
+    newTrack.pregap = pregap;
+    indexes.forEach(index -> newTrack.indexes.add(index.deepCopy()));
+    newTrack.postgap = postgap;
+    newTrack.flags = flags;
+    remarks.forEach(remark -> newTrack.remarks.add(remark.deepCopy()));
+    others.forEach(other -> newTrack.others.add(other.deepCopy()));
+    return newTrack;
+  }
 
   public boolean hasNumber() {
     return number != null;
   }
 
-  public void setNumber(int number) {
+  public void setNumberOnce(int number) {
     if (number <= 0) {
       throw new IllegalArgumentException("Track number must be strictly positive");
     } else if (this.number != null) {
@@ -63,15 +81,6 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
       this.number = number;
     }
   }
-
-  void incrNumberUnsafe() {
-    number++;
-  }
-
-  void decrNumberUnsafe() {
-    number--;
-  }
-
 
   public List<CueIndex> getIndexes() {
     return Collections.unmodifiableList(indexes);
@@ -111,9 +120,20 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     return getIndex(CueIndex.INDEX_TRACK_START);
   }
 
+  public CueIndex addIndex(CueIndex newIndex) {
+    return addIndex(newIndex, false);
+  }
 
-  public synchronized void addIndex(CueIndex newIndex) {
-    int nextNumber = getNextIndexNumber();
+  public synchronized CueIndex addIndex(CueIndex newIndex, boolean renumber) {
+    if(indexes.contains(newIndex)) {
+      throw new IllegalArgumentException("The track already contains this index");
+    }
+
+    if(newIndex.hasNumber() && renumber) {
+      newIndex = newIndex.deepCopy(null);
+    }
+
+    int nextIndexNumber = getNextIndexNumber();
 
     if (newIndex.hasNumber()) {
       int newNumber = newIndex.getNumber();
@@ -121,29 +141,34 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
         throw new IllegalArgumentException("Cannot start track with number " + newNumber + ", has to be [0,1]");
       }
 
-      if (newNumber == nextNumber) {
-        indexes.add(newIndex);
-      } else if (newNumber > nextNumber) {
-        throw new IllegalArgumentException("Index number " + newNumber + " is out of range [" + CueIndex.INDEX_PRE_GAP + "," + nextNumber + "]");
-      } else { // now we're sure 1 =< newNumber =< lastNumber
-        int i = 0;
-        for (; i < indexes.size(); i++) {
-          int currentNumber = indexes.get(i).getNumber();
-          if (currentNumber == newNumber) {
-            break;
+      if (newNumber > nextIndexNumber) {
+        throw new IllegalArgumentException("Index number " + newNumber + " is out of range [" + CueIndex.INDEX_PRE_GAP + "," + nextIndexNumber + "]");
+      } else {
+        CueIndex newIndexCopy = newIndex.deepCopy();
+        if (newNumber == nextIndexNumber) { // it's chaining
+          indexes.add(newIndexCopy); // fast-track version of the else clause below
+        } else { // now we're sure 0 =< newNumber =< lastNumber
+          int i = 0;
+          for (; i < indexes.size(); i++) {
+            int currentNumber = indexes.get(i).getNumber();
+            if (currentNumber == newNumber) {
+              break;
+            }
+          }
+
+          indexes.add(i, newIndexCopy);
+
+          // shift the remaining tracks
+          while (++i < indexes.size()) {
+            indexes.get(i).number++;
           }
         }
-
-        indexes.add(i, newIndex);
-
-        // shift the remaining tracks
-        while (++i < indexes.size()) {
-          indexes.get(i).incrNumberUnsafe();
-        }
+        return newIndexCopy;
       }
     } else {
-      newIndex.setNumber(nextNumber);
-      indexes.add(newIndex);
+      newIndex.setNumberOnce(nextIndexNumber);
+      indexes.add(newIndex); // it's OK to store it without copying because it's obviously not part of a file yet
+      return newIndex;
     }
   }
 
@@ -157,20 +182,20 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     if (number < firstNumber || number > lastNumber) {
       throw new IllegalArgumentException("Index number " + number + " is out of range [" + firstNumber + "," + lastNumber + "]");
     } else {
-      CueIndex index = null;
+      CueIndex targetIndex = null;
 
       Iterator<CueIndex> it = indexes.iterator();
       while (it.hasNext()) {
-        index = it.next();
-        if (index.getNumber() == number) {
+        targetIndex = it.next();
+        if (targetIndex.getNumber() == number) {
           it.remove();
           break;
         }
       }
       // shift the remaining tracks
-      it.forEachRemaining(CueIndex::decrNumberUnsafe);
+      it.forEachRemaining(index -> index.number--);
 
-      return index;
+      return targetIndex;
     }
   }
 
