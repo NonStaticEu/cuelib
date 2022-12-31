@@ -8,7 +8,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -40,7 +39,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
 
   public CueFile(String file, String format, Collection<? extends CueTrack> tracks) {
     this(file, format);
-    this.tracks.addAll(tracks);
+    tracks.forEach(track -> addTrack(track));
   }
 
   public String getFile() {
@@ -77,7 +76,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     return null;
   }
 
-  public CueTrack getNumberOneTrack() {
+  public CueTrack getTrackNumberOne() {
     return getTrack(CueTrack.TRACK_ONE);
   }
 
@@ -92,15 +91,11 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     return tracks.isEmpty() ? null : tracks.get(tracks.size() - 1);
   }
 
-  /**
-   * If tracks is empty we have no way to tell if there aren't other files/track before this one, thus can't tell whether 1 would be a legit number
-   * @return the next track number (notwithstanding whichever other CueFile might be behind this one)
-   */
-  public OptionalInt getNextTrackNumber() {
-    return getLastTrack()
-        .stream()
-        .mapToInt(track -> track.getNumber() + 1)
-        .findAny();
+  Integer getLastTrackNumber() {
+    CueTrack lastTrack = getLastTrack();
+    return lastTrack != null
+        ? lastTrack.getNumber()
+        : null;
   }
 
   public int getTrackCount() {
@@ -118,12 +113,11 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     return tracks.stream().map(track -> new CueFile(getFile(), getFormat(), track)).collect(Collectors.toList());
   }
 
-  public CueTrack addTrack(CueTrack newTrack) {
+  CueTrack addTrack(CueTrack newTrack) {
     return addTrack(newTrack, false);
   }
 
-
-  public synchronized CueTrack addTrack(CueTrack newTrack, boolean renumber) {
+  synchronized CueTrack addTrack(CueTrack newTrack, boolean renumber) {
     if(tracks.contains(newTrack)) {
       throw new IllegalArgumentException("The file already contains this track");
     }
@@ -132,8 +126,9 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
       newTrack = newTrack.deepCopy(null);
     }
 
-    // TODO not satisfying, one may be able to inject several tracks 1 in several files
-    int nextTrackNumber = getNextTrackNumber().orElse(CueTrack.TRACK_ONE);
+    // FIXME not satisfying, one may be able to inject several tracks 1 in several files
+    Integer lastTrackNumber = getLastTrackNumber();
+    int nextTrackNumber = lastTrackNumber != null ? lastTrackNumber+1 : CueTrack.TRACK_ONE;
 
     if (newTrack.hasNumber()) {
       int newNumber = newTrack.getNumber();
@@ -203,7 +198,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
    * @return true if we have a track 1 with index 0
    */
   public boolean hasHiddenTrack() {
-    CueTrack numberOneTrack = getNumberOneTrack();
+    CueTrack numberOneTrack = getTrackNumberOne();
     return numberOneTrack != null && numberOneTrack.hasHiddenTrack();
   }
 

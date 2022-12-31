@@ -15,7 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
+import java.util.Collection;
 import java.util.Objects;
 
 public final class CueSheetWriter {
@@ -102,7 +102,7 @@ public final class CueSheetWriter {
     track.getIndexes().forEach(index -> writeIndex(index, pw));
   }
 
-  public static void writeFlags(List<CueFlag> flags, PrintWriter pw) {
+  public static void writeFlags(Collection<CueFlag> flags, PrintWriter pw) {
     if (!flags.isEmpty()) {
       String flagsString = flags.stream()
           .filter(Objects::nonNull)

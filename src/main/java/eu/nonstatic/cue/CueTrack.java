@@ -5,9 +5,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,10 +34,14 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
   private TimeCode pregap;
   private final List<CueIndex> indexes;
   private TimeCode postgap;
-  private final List<CueFlag> flags;
+  private final Set<CueFlag> flags;
 
   private final List<CueRemark> remarks;
   private final List<CueOther> others;
+
+  public CueTrack(String type) {
+    this(null, type);
+  }
 
   public CueTrack(Integer number, String type) {
     if (number != null) {
@@ -45,7 +50,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     this.type = type;
 
     this.indexes = new ArrayList<>(2);
-    this.flags = new ArrayList<>(0);
+    this.flags = new HashSet<>(0);
     this.remarks = new ArrayList<>();
     this.others = new ArrayList<>();
   }
@@ -223,8 +228,8 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     indexes.clear();
   }
 
-  public synchronized List<CueFlag> getFlags() {
-    return Collections.unmodifiableList(flags);
+  public synchronized Set<CueFlag> getFlags() {
+    return Collections.unmodifiableSet(flags);
   }
 
   public synchronized void setFlags(Collection<CueFlag> flags) {

@@ -12,11 +12,11 @@ public final class Bom {
   /**
    * see http://www.faqs.org/rfcs/rfc3629.html see http://www.unicode.org/unicode/faq/utf_bom.html
    */
-  private static final byte[] BOM_UTF_8 = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
-  private static final byte[] BOM_UTF_16_LE = new byte[]{(byte) 0xFF, (byte) 0xFE};
-  private static final byte[] BOM_UTF_16_BE = new byte[]{(byte) 0xFE, (byte) 0xFF};
-  private static final byte[] BOM_UTF_32_LE = new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00};
-  private static final byte[] BOM_UTF_32_BE = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF};
+  protected static final byte[] BOM_UTF_8 = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+  protected static final byte[] BOM_UTF_16_LE = new byte[]{(byte) 0xFF, (byte) 0xFE};
+  protected static final byte[] BOM_UTF_16_BE = new byte[]{(byte) 0xFE, (byte) 0xFF};
+  protected static final byte[] BOM_UTF_32_LE = new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00};
+  protected static final byte[] BOM_UTF_32_BE = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF};
 
   static final int MAX_LENGTH_BYTES = 4;
   static final int MAX_LENGTH_CHARS = 4; // we don't know how many bytes a char is here, let's assume the least: 1, so we read at least 4 bytes
@@ -57,16 +57,14 @@ public final class Bom {
         } else if (equalsBom(bytes, MAX_LENGTH_BYTES, BOM_UTF_32_BE)) {
           bom = BOM_UTF_32_BE;
           break;
-        } else {
-          break;
         }
+        // else continue to case 3
       case 3:
         if (equalsBom(bytes, 3, BOM_UTF_8)) {
           bom = BOM_UTF_8;
           break;
-        } else {
-          break;
         }
+        // else continue to case 2
       case 2:
         if (equalsBom(bytes, 2, BOM_UTF_16_LE)) {
           bom = BOM_UTF_16_LE;
@@ -74,11 +72,7 @@ public final class Bom {
         } else if (equalsBom(bytes, 2, BOM_UTF_16_BE)) {
           bom = BOM_UTF_16_BE;
           break;
-        } else {
-          break;
         }
-      default:
-        // nothing
     }
     return bom;
   }

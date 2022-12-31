@@ -133,7 +133,8 @@ public class CueDisc implements CueIterable<CueFile> {
   }
 
   /**
-   * Groups tracks per file, in case the file was split per track whereas it shouldn't have been It's assuming tracks are in the right order
+   * Groups tracks per file, in case the file was split per track whereas it shouldn't have been.
+   * It's assuming tracks are in the right order
    */
   public Collection<CueFile> groupTracks() {
     Map<FileAndFormat, CueFile> map = new LinkedHashMap<>();
@@ -152,14 +153,14 @@ public class CueDisc implements CueIterable<CueFile> {
     return files.stream().findFirst()
         .filter(CueFile::hasHiddenTrack) // ensures we have at least track 1 and index 0 here
         .map(file -> {
-          CueTrack trackOne = file.getNumberOneTrack();
+          CueTrack trackOne = file.getTrackNumberOne();
           CueIndex trackOneStartIndex = trackOne.getStartIndex();
           if(trackOneStartIndex == null) {
             throw new IllegalStateException("No index " + CueIndex.INDEX_TRACK_START + " on track " + CueTrack.TRACK_ONE + " to calculate hidden track duration.");
           }
           CueIndex preGapIndex = trackOne.getPreGapIndex();
-          Duration hiddenTrackDuration = preGapIndex.until(trackOneStartIndex);
-          return new CueHiddenTrack(file, hiddenTrackDuration);
+          Duration duration = preGapIndex.until(trackOneStartIndex);
+          return new CueHiddenTrack(file, duration);
         })
       .orElse(null);
   }
@@ -176,7 +177,7 @@ public class CueDisc implements CueIterable<CueFile> {
   /**
    * @return track 1
    */
-  public CueTrack getNumberOneTrack() {
+  public CueTrack getTrackNumberOne() {
     return getTrack(CueTrack.TRACK_ONE);
   }
 
@@ -196,7 +197,7 @@ public class CueDisc implements CueIterable<CueFile> {
    * @return first track of the disc. That is, track 1 if it exists.
    */
   public CueTrack getFirstTrack() {
-    return getNumberOneTrack();
+    return getTrackNumberOne();
   }
 
   public CueTrack getLastTrack() {
@@ -302,12 +303,10 @@ public class CueDisc implements CueIterable<CueFile> {
   }
 
   public int getNextTrackNumber() {
-    CueFile lastFile = getLastFile();
-    if(lastFile != null) {
-      return lastFile.getNextTrackNumber().orElse(CueTrack.TRACK_ONE);
-    } else {
-      return CueTrack.TRACK_ONE;
-    }
+    return Optional.ofNullable(getLastFile())
+        .map(CueFile::getLastTrackNumber)
+        .map(number -> number+1)
+        .orElse(CueTrack.TRACK_ONE);
   }
 
   public List<CueIndex> getIndexes() {

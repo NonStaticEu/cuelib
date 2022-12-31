@@ -20,6 +20,14 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
   protected Integer number; // 1 is the track start, 0 is the pregap.
   private TimeCode timeCode;
 
+  public CueIndex(int minutes, int seconds, int frames) {
+    this(new TimeCode(minutes, seconds, frames));
+  }
+
+  public CueIndex(TimeCode timeCode) {
+    this(null, timeCode);
+  }
+
   public CueIndex(Integer number, int minutes, int seconds, int frames) {
     this(number, new TimeCode(minutes, seconds, frames));
   }
@@ -29,10 +37,6 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
       setNumberOnce(number);
     }
     this.timeCode = timeCode;
-  }
-
-  public CueIndex(Integer number, String timeCode) {
-    this(number, TimeCode.parse(timeCode));
   }
 
   public CueIndex deepCopy() {

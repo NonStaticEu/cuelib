@@ -13,10 +13,17 @@ import lombok.Setter;
 public class CueRemark implements CueEntity {
 
   public static final String KEYWORD = CueWords.REMARK;
+  // Not extensive tag list
   public static final String TAG_COMMENT = "COMMENT";
+  public static final String TAG_DISCID = "DISCID";
+  public static final String TAG_UPC = "UPC";
 
-  private final String tag; // COMMENT, DISCID, UPC...
+  private final String tag;
   private final String value;
+
+  public static CueRemark commentOf(String comment) {
+    return new CueRemark(TAG_COMMENT, comment);
+  }
 
   public boolean isComment() {
     return TAG_COMMENT.equalsIgnoreCase(tag);

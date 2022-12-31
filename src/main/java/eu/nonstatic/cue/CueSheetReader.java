@@ -266,6 +266,6 @@ public class CueSheetReader {
   private static CueIndex readIndex(CueLine cueLine) {
     int number = Integer.parseInt(cueLine.getTailWord(0));
     String timeCode = cueLine.getTailWord(1);
-    return new CueIndex(number, timeCode);
+    return new CueIndex(number, TimeCode.parse(timeCode));
   }
 }
