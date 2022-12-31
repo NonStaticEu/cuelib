@@ -18,17 +18,20 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Objects;
 
-public class CueSheetWriter {
+public final class CueSheetWriter {
 
-  public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
-  public static final int INDENTATION_ROOT = 0;
-  public static final int INDENTATION_FILE = INDENTATION_ROOT;
-  public static final int INDENTATION_TRACK = 2;
-  public static final int INDENTATION_INDEX = 4;
-  public static final int INDENTATION_TRACK_PROPS = INDENTATION_INDEX;
+  private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+  private static final int INDENTATION_ROOT = 0;
+  private static final int INDENTATION_FILE = INDENTATION_ROOT;
+  private static final int INDENTATION_TRACK = 2;
+  private static final int INDENTATION_INDEX = 4;
+  private static final int INDENTATION_TRACK_PROPS = INDENTATION_INDEX;
 
-  public static final OpenOption[] OPTIONS_STANDARD = {StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE};
-  public static final OpenOption[] OPTIONS_OVERWRITE = {StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE};
+  private static final OpenOption[] OPTIONS_STANDARD = {StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE};
+  private static final OpenOption[] OPTIONS_OVERWRITE = {StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE};
+
+
+  private CueSheetWriter() {}
 
   public static void writeCueSheet(CueDisc cueDisc, File cueFile) throws IOException {
     writeCueSheet(cueDisc, cueFile.toPath());

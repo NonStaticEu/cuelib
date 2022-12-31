@@ -26,7 +26,10 @@ public class CueLineReader implements Closeable {
     byte[] bom = Bom.read(is);
     is.reset();
     if (bom != null) {
-      is.skip(bom.length);
+      int skipped = 0;
+      while(skipped < bom.length) {
+        skipped += is.skip(bom.length);
+      }
     }
 
     this.reader = new LineNumberReader(new InputStreamReader(is, charset));

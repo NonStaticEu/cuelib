@@ -1,5 +1,7 @@
 package eu.nonstatic.cue;
 
+import static java.lang.Integer.parseInt;
+
 import java.time.Duration;
 import lombok.Getter;
 
@@ -82,15 +84,15 @@ public final class TimeCode {
   }
 
   public long toMillis() {
-    return (minutes * SECONDS_PER_MINUTE + seconds) * MILLIS_PER_SECOND
-        + ((frames * MILLIS_PER_SECOND + FRAMES_PER_SECOND - 1) / FRAMES_PER_SECOND); // upper rounding
+    return ((long) minutes * SECONDS_PER_MINUTE + seconds) * MILLIS_PER_SECOND
+        + (((long) frames * MILLIS_PER_SECOND + FRAMES_PER_SECOND - 1) / FRAMES_PER_SECOND); // upper rounding
   }
 
   public static TimeCode parse(String timeCode) {
     String[] parts = timeCode.split(":");
-    return new TimeCode(Integer.valueOf(parts[0]),
-        Integer.valueOf(parts[1]),
-        Integer.valueOf(parts[2]));
+    return new TimeCode(parseInt(parts[0]),
+                        parseInt(parts[1]),
+                        parseInt(parts[2]));
   }
 
   public Duration until(TimeCode other) {

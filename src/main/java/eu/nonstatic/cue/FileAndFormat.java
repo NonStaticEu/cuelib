@@ -19,7 +19,8 @@ class FileAndFormat {
   protected final String format; // MP3, AIFF, WAVE, FLAC, BIN
 
   static FileAndFormat parse(@NonNull String fileAndFormat) {
-    String file, format;
+    String file;
+    String format;
     int sep = fileAndFormat.lastIndexOf(' ');
     if (sep >= 0) {
       file = fileAndFormat.substring(0, sep).trim();

@@ -64,7 +64,8 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
 
   public Optional<CueTrack> getTrack(int number) {
     if(!tracks.isEmpty()) {
-      int firstNumber = getFirstTrack().get().getNumber(), lastNumber = getLastTrack().get().getNumber();
+      int firstNumber = getFirstTrack().get().getNumber();
+      int lastNumber = getLastTrack().get().getNumber();
       if (firstNumber <= number && number <= lastNumber) {
         for (CueTrack track : tracks) {
           if (track.getNumber() == number) {

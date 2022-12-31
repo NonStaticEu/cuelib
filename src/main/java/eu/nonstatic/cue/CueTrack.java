@@ -19,7 +19,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
   public static final String KEYWORD = CueWords.TRACK;
   public static final int TRACK_ONE = 1;
   public static final String TYPE_AUDIO = "AUDIO"; //TODO are there other modes (MODE1, MODE2 ?)
-  public static final Comparator<Integer> COMPARATOR = Comparator.naturalOrder();
+  public static final Comparator<Integer> COMPARATOR = Comparator.nullsFirst(Comparator.naturalOrder());
 
 
   protected Integer number;
@@ -72,9 +72,9 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     newTrack.pregap = pregap;
     indexes.forEach(index -> newTrack.indexes.add(index.deepCopy()));
     newTrack.postgap = postgap;
-    flags.forEach(flag -> newTrack.addFlag(flag));
-    remarks.forEach(remark -> newTrack.addRemark(remark));
-    others.forEach(other -> newTrack.others.add(other));
+    flags.forEach(newTrack::addFlag);
+    remarks.forEach(newTrack::addRemark);
+    newTrack.others.addAll(others);
     return newTrack;
   }
 
@@ -222,7 +222,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     indexes.clear();
   }
 
-  public List<CueFlag> getFlags() {
+  public synchronized List<CueFlag> getFlags() {
     return Collections.unmodifiableList(flags);
   }
 
@@ -284,7 +284,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
         .orElseThrow(() -> new IllegalStateException("No index " + CueIndex.INDEX_TRACK_START + " on track " + number));
     if (otherTrack != null) {
       CueIndex otherStart = otherTrack.getPreGapIndex()
-          .or(() -> otherTrack.getStartIndex())
+          .or(otherTrack::getStartIndex)
           .orElseThrow(() -> new IllegalStateException(
               "No index " + CueIndex.INDEX_PRE_GAP + " or " + CueIndex.INDEX_TRACK_START + " on track " + otherTrack.getNumber()));
 

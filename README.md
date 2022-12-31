@@ -4,4 +4,4 @@ Cue files were invented by Jeff Arnold for CDRWIN
 
 ## TODO
 * overall consistency check
-* move tracks
+* BOM, if any, should be used to detect encoding

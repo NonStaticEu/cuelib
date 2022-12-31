@@ -15,7 +15,7 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
   public static final String KEYWORD = CueWords.INDEX;
   public static final int INDEX_PRE_GAP = 0; // also the hidden track index in track 1
   public static final int INDEX_TRACK_START = 1;
-  public static final Comparator<Integer> COMPARATOR = Comparator.naturalOrder();
+  public static final Comparator<Integer> COMPARATOR = Comparator.nullsLast(Comparator.naturalOrder());
 
   protected Integer number; // 1 is the track start, 0 is the pregap.
   private TimeCode timeCode;

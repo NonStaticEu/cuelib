@@ -82,7 +82,7 @@ public class CueDisc implements CueIterable<CueFile> {
 
   @Override
   public CueIterator<CueFile> iterator() {
-    return new CueIterator(files);
+    return new CueIterator<>(files);
   }
 
   public CueFile addFile(CueFile newFile) {
@@ -105,7 +105,7 @@ public class CueDisc implements CueIterable<CueFile> {
       files.add(newFileCopy);
       return newFileCopy;
     } else {
-      String latestTrackNumber = getLastFile().flatMap(file -> file.getLastTrack()).map(t -> t.getNumber().toString()).orElse("<START>");
+      String latestTrackNumber = getLastFile().flatMap(CueFile::getLastTrack).map(t -> t.getNumber().toString()).orElse("<START>");
       throw new IllegalStateException("New file's first track " + firstNewTrack.get().getNumber() + " doesn't chain with the latest disc's track " + latestTrackNumber);
     }
   }
@@ -138,8 +138,8 @@ public class CueDisc implements CueIterable<CueFile> {
   public Collection<CueFile> groupTracks() {
     Map<FileAndFormat, CueFile> map = new LinkedHashMap<>();
     for (CueFile file : files) {
-      CueFile groupFile = map.computeIfAbsent(file.getFileAndFormat(), ff -> new CueFile(ff));
-      file.getTracks().forEach(cueTrack -> groupFile.addTrack(cueTrack));
+      CueFile groupFile = map.computeIfAbsent(file.getFileAndFormat(), CueFile::new);
+      file.getTracks().forEach(groupFile::addTrack);
     }
     return map.values();
   }
@@ -150,7 +150,7 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public Optional<CueHiddenTrack> getHiddenTrack() {
     return files.stream().findFirst()
-        .filter(file -> file.hasHiddenTrack()) // ensures we have at least track 1 and index 0 here
+        .filter(CueFile::hasHiddenTrack) // ensures we have at least track 1 and index 0 here
         .map(file -> {
           CueTrack trackOne = file.getNumberOneTrack().get();
           CueIndex preGapIndex = trackOne.getPreGapIndex().get();
@@ -180,7 +180,7 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public Optional<CueTrack> getTrack(int number) {
     return files.stream().map(file -> file.getTrack(number))
-        .filter(track -> track.isPresent())
+        .filter(Optional::isPresent)
         .map(Optional::get)
         .findFirst();
   }
@@ -193,8 +193,8 @@ public class CueDisc implements CueIterable<CueFile> {
   }
 
   public Optional<CueTrack> getLastTrack() {
-    return files.stream().map(file -> file.getLastTrack())
-      .filter(track -> track.isPresent())
+    return files.stream().map(CueFile::getLastTrack)
+      .filter(Optional::isPresent)
       .map(Optional::get)
         .findFirst();
   }
@@ -202,7 +202,7 @@ public class CueDisc implements CueIterable<CueFile> {
 
   /**
    * In the end the file inside a CueFile may be used several times across the disc.
-   * Not sure this is legit in the cue format but we allow it.
+   * Not sure this is legit in the cue format, but we allow it.
    */
   public CueTrack moveTrackBefore(int movingNumber, int beforeNumber) {
     int trackCount = getTrackCount();
@@ -228,14 +228,13 @@ public class CueDisc implements CueIterable<CueFile> {
       }
     }
 
-    CueTrack movedCueTrack = resetFiles(resorterList, movingNumber);
-    return movedCueTrack;
+    return resetFiles(resorterList, movingNumber);
   }
 
 
   /**
    * In the end the file inside a CueFile may be used several times across the disc.
-   * Not sure this is legit in the cue format but we allow it.
+   * Not sure this is legit in the cue format, but we allow it.
    */
   public synchronized CueTrack moveTrackAfter(int movingNumber, int afterNumber) {
     int trackCount = getTrackCount();
@@ -261,8 +260,7 @@ public class CueDisc implements CueIterable<CueFile> {
       }
     }
 
-    CueTrack movedCueTrack = resetFiles(ftList, movingNumber);
-    return movedCueTrack;
+    return resetFiles(ftList, movingNumber);
   }
 
   private CueTrack resetFiles(List<FileAndTrack> ftList, int movingNumber) {

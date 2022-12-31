@@ -15,7 +15,7 @@ class CueLine {
   private final String tail;
   private final List<String> tailParts;
 
-  private static final Pattern splitter = Pattern.compile("[ ]+");
+  private static final Pattern splitter = Pattern.compile("\\s+");
 
   CueLine(int lineNumber, String line) {
     this.lineNumber = lineNumber;

@@ -2,6 +2,15 @@ package eu.nonstatic.cue;
 
 import static eu.nonstatic.cue.CueTools.isCueFile;
 import static eu.nonstatic.cue.CueTools.unquote;
+import static eu.nonstatic.cue.CueWords.CATALOG;
+import static eu.nonstatic.cue.CueWords.CDTEXTFILE;
+import static eu.nonstatic.cue.CueWords.FLAGS;
+import static eu.nonstatic.cue.CueWords.ISRC;
+import static eu.nonstatic.cue.CueWords.PERFORMER;
+import static eu.nonstatic.cue.CueWords.POSTGAP;
+import static eu.nonstatic.cue.CueWords.PREGAP;
+import static eu.nonstatic.cue.CueWords.SONGWRITER;
+import static eu.nonstatic.cue.CueWords.TITLE;
 import static java.util.stream.Collectors.toList;
 
 import java.io.BufferedInputStream;
@@ -18,7 +27,11 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class CueSheetReader implements CueWords {
+public class CueSheetReader {
+
+  public static final String NO_KEYWORD_MESSAGE = "{}#{}: No keyword on line: {}";
+
+  private CueSheetReader() {}
 
   public static CueDisc readCueSheet(File cueFile) throws IOException {
     return readCueSheet(cueFile.toPath());
@@ -125,7 +138,7 @@ public class CueSheetReader implements CueWords {
               disc.addOther(readOther(line));
           }
         } else {
-          log.warn("{}#{}: No keyword on line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn(NO_KEYWORD_MESSAGE, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
     }
@@ -179,7 +192,7 @@ public class CueSheetReader implements CueWords {
               return file;
           }
         } else {
-          log.warn("{}#{}: No keyword on line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn(NO_KEYWORD_MESSAGE, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
@@ -237,7 +250,7 @@ public class CueSheetReader implements CueWords {
               track.addOther(readOther(line));
           }
         } else {
-          log.warn("{}#{}: No keyword on line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn(NO_KEYWORD_MESSAGE, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
