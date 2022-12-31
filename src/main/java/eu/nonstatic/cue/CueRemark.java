@@ -1,11 +1,11 @@
 package eu.nonstatic.cue;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 
 import static eu.nonstatic.cue.CueTools.quote;
 
-@Getter
+@Data
 @AllArgsConstructor
 public class CueRemark extends CueEntity {
 
