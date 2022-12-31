@@ -73,13 +73,13 @@ public class CueTools {
   }
 
 
-  public static String unquote(String s) {
-    if (s != null) {
-      int start = s.startsWith("\"") ? 1 : 0;
-      int end = s.length() - (s.endsWith("\"") ? 1 : 0);
-      s = s.substring(start, end);
+  public static String unquote(String str) {
+    if (str != null) {
+      int start = str.startsWith("\"") ? 1 : 0;
+      int end = str.length() - (str.endsWith("\"") ? 1 : 0);
+      str = str.substring(start, end);
     }
-    return s;
+    return str;
   }
 
   public static boolean isCueFile(Path file) {

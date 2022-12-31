@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 @Data
 public class CueFile implements CueEntity {
 
+  public static final String KEYWORD = CueWords.FILE;
+
   private final String file;
   private final String format; // MP3, AIFF, WAVE, FLAC, BIN
 

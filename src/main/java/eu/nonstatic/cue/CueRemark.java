@@ -7,6 +7,17 @@ import lombok.Getter;
 @AllArgsConstructor
 public class CueRemark implements CueEntity {
 
+  public static final String KEYWORD = CueWords.REMARK;
+
   private final String tag; // COMMENT, DISCID, UPC...
   private final String value;
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder(KEYWORD).append(' ').append(tag);
+    if (value != null) {
+      sb.append(' ').append(value);
+    }
+    return sb.toString();
+  }
 }
