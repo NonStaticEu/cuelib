@@ -82,7 +82,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     return number != null;
   }
 
-  public void setNumberOnce(int number) {
+  protected void setNumberOnce(int number) {
     if (number <= 0) {
       throw new IllegalArgumentException("Track number must be strictly positive");
     } else if (this.number != null) {
@@ -96,37 +96,38 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     return Collections.unmodifiableList(indexes);
   }
 
-  public Optional<CueIndex> getIndex(int number) {
+  public CueIndex getIndex(int number) {
     for (CueIndex index : indexes) {
       int indexNumber = index.getNumber();
       if (indexNumber == number) {
-        return Optional.of(index);
+        return index;
       } else if (indexNumber > number) {
         break;
       }
     }
-    return Optional.empty();
+    return null;
   }
 
-  public Optional<CueIndex> getFirstIndex() {
-    return indexes.isEmpty() ? Optional.empty() : Optional.of(indexes.get(0));
+  public CueIndex getFirstIndex() {
+    return indexes.isEmpty() ? null : indexes.get(0);
   }
 
-  public Optional<CueIndex> getLastIndex() {
-    return indexes.isEmpty() ? Optional.empty() : Optional.of(indexes.get(indexes.size() - 1));
+  public CueIndex getLastIndex() {
+    return indexes.isEmpty() ? null : indexes.get(indexes.size() - 1);
   }
 
   public int getNextIndexNumber() {
-    return getLastIndex()
-        .map(track -> track.getNumber() + 1)
-        .orElse(CueIndex.INDEX_TRACK_START); // this is opinionated
+    CueIndex lastIndex = getLastIndex();
+    return lastIndex != null
+      ? lastIndex.getNumber() + 1
+      : CueIndex.INDEX_TRACK_START; // this is opinionated
   }
 
-  public Optional<CueIndex> getPreGapIndex() {
+  public CueIndex getPreGapIndex() {
     return getIndex(CueIndex.INDEX_PRE_GAP);
   }
 
-  public Optional<CueIndex> getStartIndex() {
+  public CueIndex getStartIndex() {
     return getIndex(CueIndex.INDEX_TRACK_START);
   }
 
@@ -147,7 +148,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
 
     if (newIndex.hasNumber()) {
       int newNumber = newIndex.getNumber();
-      if (indexes.isEmpty() && newNumber != CueIndex.INDEX_PRE_GAP && newNumber != CueIndex.INDEX_TRACK_START) {
+      if (indexes.isEmpty() && !CueIndex.isPreGapOrStart(newNumber)) {
         throw new IllegalArgumentException("Cannot start track with number " + newNumber + ", has to be [0,1]");
       }
 
@@ -187,8 +188,8 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
       throw new IllegalArgumentException("Index list is empty");
     }
 
-    int firstNumber = getFirstIndex().get().getNumber();
-    int lastNumber = getLastIndex().get().getNumber();
+    int firstNumber = getFirstIndex().getNumber();
+    int lastNumber = getLastIndex().getNumber();
     if (number < firstNumber || number > lastNumber) {
       throw new IllegalArgumentException("Index number " + number + " is out of range [" + firstNumber + "," + lastNumber + "]");
     } else {
@@ -265,7 +266,7 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
   }
 
   public boolean hasHiddenTrack() {
-    return number != null && number == TRACK_ONE && getPreGapIndex().isPresent();
+    return number != null && number == TRACK_ONE && getPreGapIndex() != null;
   }
 
   @Override
@@ -275,23 +276,24 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
 
 
   /**
-   * @return time until the start of another track, else till the end of the file
+   * @return time until the pregap -if it exists-, or start of another track, else till the end of the file
    */
   Duration until(CueTrack otherTrack, Duration fileDuration) {
     Duration trackDuration;
 
-    CueIndex trackStart = getStartIndex()
-        .orElseThrow(() -> new IllegalStateException("No index " + CueIndex.INDEX_TRACK_START + " on track " + number));
+    CueIndex trackStart = getStartIndex();
+    if(trackStart == null) {
+      throw new IllegalStateException("No index " + CueIndex.INDEX_TRACK_START + " on track " + number);
+    }
     if (otherTrack != null) {
-      CueIndex otherStart = otherTrack.getPreGapIndex()
-          .or(otherTrack::getStartIndex)
-          .orElseThrow(() -> new IllegalStateException(
-              "No index " + CueIndex.INDEX_PRE_GAP + " or " + CueIndex.INDEX_TRACK_START + " on track " + otherTrack.getNumber()));
-
-      trackDuration = trackStart.until(otherStart);
-      if (trackDuration.isNegative()) {
-        throw new IllegalStateException(
-            "Difference between track " + number + " (" + trackStart + ") and track " + otherTrack.number + " (" + otherStart + ") is negative.");
+      if(otherTrack.getIndexCount() > 0) {
+        CueIndex otherStart = otherTrack.getFirstIndex();
+        trackDuration = trackStart.until(otherStart);
+        if (trackDuration.isNegative()) {
+          throw new IllegalStateException("Difference between track " + number + " (" + trackStart + ") and track " + otherTrack.number + " (" + otherStart + ") is negative.");
+        }
+      } else {
+        throw new IllegalStateException("No index " + CueIndex.INDEX_PRE_GAP + " or " + CueIndex.INDEX_TRACK_START + " on track " + otherTrack.getNumber());
       }
     } else {
       trackDuration = fileDuration.minusMillis(trackStart.getTimeMillis());

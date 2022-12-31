@@ -12,14 +12,14 @@ public class CueHiddenTrack {
   private Duration duration; //from index 0 till index 1 on track 1
 
   public CueTrack getTrack() {
-    return file.getNumberOneTrack().get();
+    return file.getNumberOneTrack();
   }
 
   public CueIndex getPreGapIndex() {
-    return getTrack().getPreGapIndex().get();
+    return getTrack().getPreGapIndex();
   }
 
   public CueIndex getStartIndex() {
-    return getTrack().getStartIndex().get();
+    return getTrack().getStartIndex();
   }
 }

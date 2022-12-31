@@ -8,7 +8,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -62,37 +61,35 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     return Collections.unmodifiableList(tracks);
   }
 
-  public Optional<CueTrack> getTrack(int number) {
+  public CueTrack getTrack(int number) {
     if(!tracks.isEmpty()) {
-      int firstNumber = getFirstTrack().get().getNumber();
-      int lastNumber = getLastTrack().get().getNumber();
+      int firstNumber = getFirstTrack().getNumber();
+      int lastNumber = getLastTrack().getNumber();
       if (firstNumber <= number && number <= lastNumber) {
         for (CueTrack track : tracks) {
           if (track.getNumber() == number) {
-            return Optional.of(track);
+            return track;
           }
         }
       }
-      // else no exception because
-      // a) we are returning an Optional
-      // b) because we may be calling from a CueDisc throughout all its CueFiles
+      // else no exception because we may be calling from a CueDisc throughout all its CueFiles
     }
-    return Optional.empty();
+    return null;
   }
 
-  public Optional<CueTrack> getNumberOneTrack() {
+  public CueTrack getNumberOneTrack() {
     return getTrack(CueTrack.TRACK_ONE);
   }
 
   /**
    * @return the first track on this file. It may not be track 1 on a cue sheet
    */
-  public Optional<CueTrack> getFirstTrack() {
-    return tracks.isEmpty() ? Optional.empty() : Optional.of(tracks.get(0));
+  public CueTrack getFirstTrack() {
+    return tracks.isEmpty() ? null : tracks.get(0);
   }
 
-  public Optional<CueTrack> getLastTrack() {
-    return tracks.isEmpty() ? Optional.empty() : Optional.of(tracks.get(tracks.size() - 1));
+  public CueTrack getLastTrack() {
+    return tracks.isEmpty() ? null : tracks.get(tracks.size() - 1);
   }
 
   /**
@@ -176,7 +173,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
       throw new IllegalArgumentException("Track list is empty");
     }
 
-    int lastNumber = getLastTrack().get().getNumber();
+    int lastNumber = getLastTrack().getNumber();
     if (number < CueTrack.TRACK_ONE || number > lastNumber) {
       throw new IllegalArgumentException("Track number " + number + " is out of range [" + CueTrack.TRACK_ONE + "," + lastNumber + "]");
     } else {
@@ -206,14 +203,15 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
    * @return true if we have a track 1 with index 0
    */
   public boolean hasHiddenTrack() {
-    return getNumberOneTrack().map(CueTrack::hasHiddenTrack).orElse(false);
+    CueTrack numberOneTrack = getNumberOneTrack();
+    return numberOneTrack != null && numberOneTrack.hasHiddenTrack();
   }
 
   public Map<CueTrack, Duration> getTracksDurations(Duration fileDuration) {
     var map = new LinkedHashMap<CueTrack, Duration>();
 
     if (!tracks.isEmpty()) {
-      java.util.Iterator<CueTrack> tit = tracks.iterator();
+      Iterator<CueTrack> tit = tracks.iterator();
       CueTrack currentTrack = tit.next();
 
       while (tit.hasNext()) {
@@ -227,18 +225,24 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     return map;
   }
 
-  public Optional<Duration> getTrackDuration(int number, Duration fileDuration) {
-    java.util.Iterator<CueTrack> tit = tracks.iterator();
+  /**
+   * The cue file doesn't give the last track's ending time-code, so we need to know its run length.
+   * @param number
+   * @param fileDuration for the last track
+   * @return
+   */
+  public Duration getTrackDuration(int number, Duration fileDuration) {
+    Iterator<CueTrack> tit = tracks.iterator();
     while (tit.hasNext()) {
       CueTrack track = tit.next();
       if (track.getNumber() == number) {
         CueTrack nextTrack = tit.hasNext() ? tit.next() : null;
-        return Optional.of(track.until(nextTrack, fileDuration));
-      } else if (track.getNumber() > number) {
+        return track.until(nextTrack, fileDuration);
+      } else if (track.getNumber() > number) { // number must be in a file preceding this one
         break;
       }
-    }
-    return Optional.empty();
+    } // number must be in a file following this one
+    throw new IllegalArgumentException("Track " + number + " isn't part of the file " + fileAndFormat);
   }
 
   public List<CueIndex> getIndexes() {

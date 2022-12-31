@@ -47,7 +47,7 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
     return number != null;
   }
 
-  public void setNumberOnce(int number) {
+  protected void setNumberOnce(int number) {
     if (number < 0) {
       throw new IllegalArgumentException("Index number must be zero or positive");
     } else if (this.number != null) {
@@ -55,6 +55,10 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
     } else {
       this.number = number;
     }
+  }
+
+  public static boolean isPreGapOrStart(int number) {
+    return number == INDEX_PRE_GAP || number == INDEX_TRACK_START;
   }
 
   public int getMinutes() {

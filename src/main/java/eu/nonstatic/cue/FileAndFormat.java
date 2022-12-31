@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.ToString;
 
 /**
  * This class is meant to be immutable
@@ -13,6 +14,7 @@ import lombok.NonNull;
 @Getter
 @AllArgsConstructor
 @EqualsAndHashCode // null-safe
+@ToString
 class FileAndFormat {
 
   protected final String file;
