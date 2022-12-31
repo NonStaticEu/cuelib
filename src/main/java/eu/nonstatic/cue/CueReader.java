@@ -91,11 +91,11 @@ public class CueReader implements CueWords {
               disc.addRemark(readRemark(line));
               break;
             default:
-              log.warn("{}: Unknown disc line: {}", context.getPath(), line.getRaw());
+              log.warn("{}#{}: Unknown disc line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
               disc.addOther(readOther(line));
           }
         } else {
-          log.warn("{}: No keyword on line {}: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn("{}#{}: No keyword on line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
     }
@@ -147,7 +147,7 @@ public class CueReader implements CueWords {
               return file;
           }
         } else {
-          log.warn("{}: No keyword on line {}: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn("{}#{}: No keyword on line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
@@ -201,11 +201,11 @@ public class CueReader implements CueWords {
               track.addRemark(readRemark(line));
               break;
             default:
-              log.warn("{}: Unknown track line: {}", context.getPath(), line.getRaw());
+              log.warn("{}#{}: Unknown track line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
               track.addOther(readOther(line));
           }
         } else {
-          log.warn("{}: No keyword on line {}: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn("{}#{}: No keyword on line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
