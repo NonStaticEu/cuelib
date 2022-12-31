@@ -29,8 +29,10 @@ public class CueReader {
 
   public static CueDisc readCue(Path cueFile) throws IOException {
     checkCueExtension(cueFile);
-    Charset charset = CueTools.detectEncoding(cueFile);
-    return readCue(cueFile, charset);
+    try (BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(cueFile))) {
+      CueContext context = new CueTools().detectEncoding(cueFile.toString(), bis); // the stream is reset after detection
+      return readCue(bis, context);
+    }
   }
 
   public static CueDisc readCue(Path cueFile, Charset charset) throws IOException {
@@ -142,7 +144,7 @@ public class CueReader {
               reader.reset();
               return file;
             case "TRACK":
-              Integer number = Integer.valueOf(line.getTailWord(0));
+              int number = Integer.parseInt(line.getTailWord(0));
               String type = line.getTailWord(1);
               file.addTrack(readTrack(number, type, reader, context));
               break;
@@ -227,7 +229,7 @@ public class CueReader {
 
 
   private static CueIndex readIndex(CueLine cueLine) {
-    Integer number = Integer.valueOf(cueLine.getTailWord(0));
+    int number = Integer.parseInt(cueLine.getTailWord(0));
     String timeCode = cueLine.getTailWord(1);
     return new CueIndex(number, timeCode);
   }
