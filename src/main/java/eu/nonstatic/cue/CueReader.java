@@ -57,6 +57,26 @@ public class CueReader implements CueWords {
     }
   }
 
+  public static CueDisc readCue(CharSequence[] lines, CueContext context) throws IOException {
+    Charset charset = context.getCharset();
+    byte[] bytes = String.join("\n", lines)
+        .getBytes(charset);
+    return readCue(bytes, context);
+  }
+
+  public static CueDisc readCue(Iterable<? extends CharSequence> lines, CueContext context) throws IOException {
+    Charset charset = context.getCharset();
+    byte[] bytes = String.join("\n", lines)
+        .getBytes(charset);
+    return readCue(bytes, context);
+  }
+
+  private static CueDisc readCue(byte[] bytes, CueContext context) throws IOException {
+    try (CueLineReader cueLineReader = new CueLineReader(new ByteArrayInputStream(bytes), context.getCharset())) {
+      return readCue(cueLineReader, context);
+    }
+  }
+
   private static CueDisc readCue(CueLineReader cueLineReader, CueContext context) throws IOException {
     CueDisc disc = new CueDisc(context.getPath(), context.getCharset());
 
@@ -108,14 +128,16 @@ public class CueReader implements CueWords {
    */
   private static CueRemark readRemark(CueLine line) {
     String tail = line.getTail();
-    int sep = tail.indexOf(' ');
-    if (sep >= 0) {
-      String type = tail.substring(0, sep);
-      String content = tail.substring(sep + 1).trim();
-      return new CueRemark(type, unquote(content));
-    } else {
-      return new CueRemark(null, unquote(tail));
+    if (tail != null) {
+      int sep = tail.indexOf(' ');
+      if (sep >= 0) {
+        String type = tail.substring(0, sep);
+        String content = tail.substring(sep + 1).trim();
+        return new CueRemark(type, unquote(content));
+      }
     }
+
+    return new CueRemark(null, unquote(tail));
   }
 
   private static CueOther readOther(CueLine line) {

@@ -14,7 +14,10 @@ public class CueRemark implements CueEntity {
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder(KEYWORD).append(' ').append(tag);
+    StringBuilder sb = new StringBuilder(KEYWORD);
+    if (tag != null) {
+      sb.append(' ').append(tag);
+    }
     if (value != null) {
       sb.append(' ').append(value);
     }
