@@ -110,9 +110,9 @@ public class CueSheetWriter {
   }
 
 
-  private static void printlnQuoted(PrintWriter pw, int indent, String keyword, String str) {
-    if (str != null) {
-      printlnRaw(pw, indent, keyword + ' ' + quote(str));
+  private static void printlnQuoted(PrintWriter pw, int indent, String keyword, Object obj) {
+    if (obj != null) {
+      printlnRaw(pw, indent, keyword + ' ' + quote(obj.toString()));
     }
   }
 

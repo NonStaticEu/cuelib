@@ -5,17 +5,22 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * https://en.wikipedia.org/wiki/Cue_sheet_(computing) https://wiki.hydrogenaud.io/index.php?title=Cue_sheet
- * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets
+ * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets Regards to Jeff Arnold
  */
 @Getter
 @Setter
 @EqualsAndHashCode
-public class CueDisc {
+public class CueDisc implements CueIterable<CueFile> {
+
+  public static final String UPC_EAN_REGEXP = "\\d{12,13}";
+  private static final Pattern UPC_EAN_PATTERN = Pattern.compile(UPC_EAN_REGEXP);
 
   private final String path;
   private final Charset charset;
@@ -36,6 +41,16 @@ public class CueDisc {
     this.charset = charset;
   }
 
+  public void setCatalog(String catalog) {
+    if (!UPC_EAN_PATTERN.matcher(catalog).matches()) {
+      throw new IllegalArgumentException("UPC/EAN/MCN must be [12-13] digits");
+    }
+    if (catalog.length() == 12) {
+      catalog = '0' + catalog;
+    }
+    this.catalog = catalog;
+  }
+
   public List<CueFile> getFiles() {
     return Collections.unmodifiableList(files);
   }
@@ -44,8 +59,13 @@ public class CueDisc {
     return (int) files.stream().map(CueFile::getFile).distinct().count();
   }
 
+  @Override
+  public CueIterator<CueFile> iterator() {
+    return new CueIterator(files);
+  }
+
   public void addFile(CueFile file) {
-    // TODO check overall tracks/indexes numbering
+    // TODO check overall tracks numbering
     files.add(file);
   }
 
@@ -76,6 +96,21 @@ public class CueDisc {
   public boolean hasHiddenTrack() {
     return !files.isEmpty() && files.get(0).hasHiddenTrack();
   }
+
+  public Optional<CueHiddenTrack> getHiddenTrack() {
+    return files.stream().findFirst()
+        .filter(file -> file.hasHiddenTrack()) // ensures we have at least track 1 and index 0 here
+        .map(file -> {
+          CueTrack trackOne = file.getNumberOneTrack().get();
+          CueIndex preGapIndex = trackOne.getPreGapIndex().get();
+          CueIndex trackStartIndex = trackOne.getStartIndex()
+              .orElseThrow(() -> new IllegalStateException(
+                  "No index " + CueIndex.INDEX_TRACK_START + " on track " + CueTrack.TRACK_ONE + " to calculate hidden track duration."));
+          Duration hiddenTrackDuration = preGapIndex.until(trackStartIndex);
+          return new CueHiddenTrack(file, hiddenTrackDuration);
+        });
+  }
+
 
   public List<CueTrack> getTracks() {
     return files.stream().flatMap(file -> file.getTracks().stream()).collect(Collectors.toList());

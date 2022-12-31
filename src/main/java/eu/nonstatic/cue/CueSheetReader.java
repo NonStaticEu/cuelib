@@ -210,10 +210,10 @@ public class CueSheetReader implements CueWords {
               track.setIsrc(unquote(tail));
               break;
             case PREGAP:
-              track.setPregap(tail);
+              track.setPregap(TimeCode.parse(tail));
               break;
             case POSTGAP:
-              track.setPostgap(tail);
+              track.setPostgap(TimeCode.parse(tail));
               break;
             case FLAGS:
               track.setFlags(readFlags(line));

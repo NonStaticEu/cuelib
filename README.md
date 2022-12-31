@@ -1,7 +1,7 @@
 # cuelib
-A simple java eu.nonstatic.cue file reader lib (and maybe one day writer too)
+A simple java .cue file reader lib
+Cue files were invented by Jeff Arnold for CDRWIN
 
 ## TODO
 * overall consistency check
-* tracks/index sorting/reordering
-* extract hidden track data
+* track/index removal
