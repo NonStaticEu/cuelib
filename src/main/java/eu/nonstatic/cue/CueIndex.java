@@ -29,4 +29,9 @@ public class CueIndex implements CueEntity {
   public String getTimeCode() {
     return String.format("%02d:%02d:%02d", minutes, seconds, frames);
   }
+
+  @Override
+  public String toString() {
+    return String.format("%s %02d %s", KEYWORD, number, getTimeCode());
+  }
 }
