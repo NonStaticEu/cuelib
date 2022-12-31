@@ -40,6 +40,10 @@ public class CueTrack implements CueEntity {
     indexes.add(index);
   }
 
+  public int getIndexCount() {
+    return indexes.size();
+  }
+
   public List<CueRemark> getRemarks() {
     return Collections.unmodifiableList(remarks);
   }

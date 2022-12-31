@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 /**
  * https://en.wikipedia.org/wiki/Cue_sheet_(computing) https://wiki.hydrogenaud.io/index.php?title=Cue_sheet
- * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets Regards to Jeff Arnold
+ * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets
  */
 @Data
 public class CueDisc implements CueEntity {
@@ -38,6 +38,10 @@ public class CueDisc implements CueEntity {
     return Collections.unmodifiableList(files);
   }
 
+  public int getFileCount() {
+    return (int) files.stream().map(CueFile::getFile).distinct().count();
+  }
+
   public void addFile(CueFile file) {
     files.add(file);
   }
@@ -50,12 +54,24 @@ public class CueDisc implements CueEntity {
     remarks.add(remark);
   }
 
+  public List<CueFile> splitTracks() {
+    return files.stream().flatMap(file -> file.splitTracks().stream()).collect(Collectors.toList());
+  }
+
   public List<CueTrack> getTracks() {
     return files.stream().flatMap(file -> file.getTracks().stream()).collect(Collectors.toList());
   }
 
+  public int getTrackCount() {
+    return files.stream().mapToInt(CueFile::getTrackCount).sum();
+  }
+
   public List<CueIndex> getIndexes() {
     return files.stream().flatMap(file -> file.getIndexes().stream()).collect(Collectors.toList());
+  }
+
+  public int getIndexCount() {
+    return files.stream().mapToInt(CueFile::getIndexCount).sum();
   }
 
   public List<CueOther> getOthers() {
