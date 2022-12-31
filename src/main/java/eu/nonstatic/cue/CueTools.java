@@ -2,8 +2,6 @@ package eu.nonstatic.cue;
 
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +10,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class CueTools {

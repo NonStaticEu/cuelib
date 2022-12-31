@@ -1,16 +1,21 @@
 package eu.nonstatic.cue;
 
-import lombok.extern.slf4j.Slf4j;
+import static eu.nonstatic.cue.CueTools.isCueFile;
+import static eu.nonstatic.cue.CueTools.unquote;
+import static java.util.stream.Collectors.toList;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-
-import static eu.nonstatic.cue.CueTools.isCueFile;
-import static eu.nonstatic.cue.CueTools.unquote;
-import static java.util.stream.Collectors.toList;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class CueSheetReader implements CueWords {
@@ -41,6 +46,12 @@ public class CueSheetReader implements CueWords {
   private static void checkCueExtension(Path cueFile) throws IllegalArgumentException {
     if (!isCueFile(cueFile)) {
       throw new IllegalArgumentException("Not a cue file: " + cueFile);
+    }
+  }
+
+  public static CueDisc readCueSheet(URL cueFile,  Charset charset) throws IOException {
+    try (InputStream is = cueFile.openStream()) {
+      return readCueSheet(is, new CueContext(cueFile.toExternalForm(), charset));
     }
   }
 

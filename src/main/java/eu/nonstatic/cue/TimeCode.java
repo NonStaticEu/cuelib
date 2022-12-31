@@ -1,8 +1,7 @@
 package eu.nonstatic.cue;
 
-import lombok.Getter;
-
 import java.time.Duration;
+import lombok.Getter;
 
 /**
  * Immutable class
@@ -78,9 +77,12 @@ public final class TimeCode {
     return new TimeCode(this.minutes, this.seconds, frames);
   }
 
+  public int toFrames() {
+    return (minutes * SECONDS_PER_MINUTE + seconds) * FRAMES_PER_SECOND + frames;
+  }
+
   public long toMillis() {
-    return (minutes * SECONDS_PER_MINUTE * MILLIS_PER_SECOND)
-        + (seconds * MILLIS_PER_SECOND)
+    return (minutes * SECONDS_PER_MINUTE + seconds) * MILLIS_PER_SECOND
         + ((frames * MILLIS_PER_SECOND + FRAMES_PER_SECOND - 1) / FRAMES_PER_SECOND); // upper rounding
   }
 
@@ -113,6 +115,23 @@ public final class TimeCode {
 
   public TimeCode plus(long otherMillis) {
     return new TimeCode(toMillis() + otherMillis);
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (other == null || getClass() != other.getClass()) {
+      return false;
+    }
+
+    return getFrames() == ((TimeCode)other).getFrames();
+  }
+
+  @Override
+  public int hashCode() {
+    return getFrames();
   }
 
   @Override

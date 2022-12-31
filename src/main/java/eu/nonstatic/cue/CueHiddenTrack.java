@@ -1,9 +1,8 @@
 package eu.nonstatic.cue;
 
+import java.time.Duration;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-
-import java.time.Duration;
 
 @Getter
 @AllArgsConstructor

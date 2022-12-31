@@ -1,18 +1,24 @@
 package eu.nonstatic.cue;
 
-import lombok.*;
-
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
-@Getter
-@Setter
+@Getter @Setter
 @EqualsAndHashCode
 public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<CueIndex> {
 
   public static final String KEYWORD = CueWords.TRACK;
   public static final int TRACK_ONE = 1;
-  public static final String TYPE_AUDIO = "AUDIO"; //TODO other modes (MODE1, MODE2 ?)
+  public static final String TYPE_AUDIO = "AUDIO"; //TODO are there other modes (MODE1, MODE2 ?)
   public static final Comparator<Integer> COMPARATOR = Comparator.naturalOrder();
 
 
@@ -25,19 +31,23 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
   private String isrc;
 
   private TimeCode pregap;
-  private final ArrayList<CueIndex> indexes;
+  private final List<CueIndex> indexes;
   private TimeCode postgap;
-  private List<CueFlag> flags;
+  private final List<CueFlag> flags;
 
-  private final List<CueRemark> remarks = new ArrayList<>();
-  private final List<CueOther> others = new ArrayList<>();
+  private final List<CueRemark> remarks;
+  private final List<CueOther> others;
 
   public CueTrack(Integer number, String type) {
     if (number != null) {
       setNumberOnce(number);
     }
     this.type = type;
+
     this.indexes = new ArrayList<>(2);
+    this.flags = new ArrayList<>(0);
+    this.remarks = new ArrayList<>();
+    this.others = new ArrayList<>();
   }
 
   public CueTrack(Integer number, String type, CueIndex index) {
@@ -62,9 +72,9 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     newTrack.pregap = pregap;
     indexes.forEach(index -> newTrack.indexes.add(index.deepCopy()));
     newTrack.postgap = postgap;
-    newTrack.flags = flags;
-    remarks.forEach(remark -> newTrack.remarks.add(remark.deepCopy()));
-    others.forEach(other -> newTrack.others.add(other.deepCopy()));
+    flags.forEach(flag -> newTrack.addFlag(flag));
+    remarks.forEach(remark -> newTrack.addRemark(remark));
+    others.forEach(other -> newTrack.others.add(other));
     return newTrack;
   }
 
@@ -208,12 +218,37 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
     return indexes.size();
   }
 
+  public void clearIndexes() {
+    indexes.clear();
+  }
+
+  public List<CueFlag> getFlags() {
+    return Collections.unmodifiableList(flags);
+  }
+
+  public synchronized void setFlags(Collection<CueFlag> flags) {
+    clearFlags();
+    this.flags.addAll(flags);
+  }
+
+  public boolean addFlag(CueFlag cueFlag) {
+    return flags.add(cueFlag);
+  }
+
+  public void clearFlags() {
+    flags.clear();
+  }
+
   public List<CueRemark> getRemarks() {
     return Collections.unmodifiableList(remarks);
   }
 
   public void addRemark(CueRemark remark) {
     remarks.add(remark);
+  }
+
+  public void clearRemarks() {
+    remarks.clear();
   }
 
 
@@ -223,6 +258,10 @@ public class CueTrack implements CueEntity, Comparable<CueTrack>, CueIterable<Cu
 
   public void addOther(CueOther other) {
     others.add(other);
+  }
+
+  public void clearOthers() {
+    others.clear();
   }
 
   public boolean hasHiddenTrack() {

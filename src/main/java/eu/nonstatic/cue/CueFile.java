@@ -1,32 +1,38 @@
 package eu.nonstatic.cue;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.Setter;
 
-import java.time.Duration;
-import java.util.*;
-import java.util.stream.Collectors;
-
-@Getter
-@Setter
 @EqualsAndHashCode
 public class CueFile implements CueEntity, CueIterable<CueTrack> {
 
   public static final String KEYWORD = CueWords.FILE;
 
-  protected String file;
-  protected String format; // MP3, AIFF, WAVE, FLAC, BIN
+  @Getter(AccessLevel.PACKAGE)
+  private FileAndFormat fileAndFormat;
+
   private final ArrayList<CueTrack> tracks;
 
-  CueFile(FileAndFormat ff) {
-    this(ff.file, ff.format); // tracks may remain empty, some files may be declared as extra resources
+  // FileAndFormat isn't a first class citizen, hence ctor visibility
+  CueFile(FileAndFormat fileAndFormat) {
+    this.fileAndFormat = fileAndFormat;
+    this.tracks = new ArrayList<>(12);
   }
 
   public CueFile(String file, String format) {
-    this.file = file;
-    this.format = format;
-    this.tracks = new ArrayList<>(12);
+    this(new FileAndFormat(file, format));
   }
 
   public CueFile(String file, String format, CueTrack track) {
@@ -38,14 +44,18 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     this.tracks.addAll(tracks);
   }
 
-  public CueFile deepCopy() {
-    CueFile newFile = new CueFile(toFileAndFormat());
-    tracks.forEach(track -> track.deepCopy());
-    return newFile;
+  public String getFile() {
+    return fileAndFormat.getFile();
   }
 
-  FileAndFormat toFileAndFormat() {
-    return new FileAndFormat(file, format);
+  public String getFormat() {
+    return fileAndFormat.getFormat();
+  }
+
+  public CueFile deepCopy() {
+    CueFile newFile = new CueFile(fileAndFormat);
+    tracks.forEach(track -> newFile.tracks.add(track.deepCopy()));
+    return newFile;
   }
 
   public List<CueTrack> getTracks() {
@@ -53,13 +63,18 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
   }
 
   public Optional<CueTrack> getTrack(int number) {
-    for (CueTrack track : tracks) {
-      int trackNumber = track.getNumber();
-      if (trackNumber == number) {
-        return Optional.of(track);
-      } else if (trackNumber > number) {
-        break;
+    if(!tracks.isEmpty()) {
+      int firstNumber = getFirstTrack().get().getNumber(), lastNumber = getLastTrack().get().getNumber();
+      if (firstNumber <= number && number <= lastNumber) {
+        for (CueTrack track : tracks) {
+          if (track.getNumber() == number) {
+            return Optional.of(track);
+          }
+        }
       }
+      // else no exception because
+      // a) we are returning an Optional
+      // b) because we may be calling from a CueDisc throughout all its CueFiles
     }
     return Optional.empty();
   }
@@ -94,11 +109,15 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     return tracks.size();
   }
 
+  public void clearTracks() {
+    tracks.clear();
+  }
+
   /**
    * @return splits this CueFile into as many CueFiles as tracks
    */
   public List<CueFile> split() {
-    return tracks.stream().map(track -> new CueFile(file, format, track)).collect(Collectors.toList());
+    return tracks.stream().map(track -> new CueFile(getFile(), getFormat(), track)).collect(Collectors.toList());
   }
 
   public CueTrack addTrack(CueTrack newTrack) {
@@ -127,19 +146,19 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
         if (newNumber == nextTrackNumber) { // it's chaining
           tracks.add(newTrackCopy); // fast-track version of the else clause below
         } else { // now we're sure 1 =< newNumber =< lastNumber
-          int i = 0;
-          for (; i < tracks.size(); i++) {
-            int currentNumber = tracks.get(i).getNumber();
+          int t = 0;
+          for (; t < tracks.size(); t++) {
+            int currentNumber = tracks.get(t).getNumber();
             if (currentNumber == newNumber) {
               break;
             }
           }
 
-          tracks.add(i, newTrackCopy);
+          tracks.add(t, newTrackCopy);
 
           // shift the remaining tracks
-          while (++i < tracks.size()) {
-            tracks.get(i).number++;
+          while (++t < tracks.size()) {
+            tracks.get(t).number++;
           }
         }
         return newTrackCopy;
@@ -231,7 +250,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
 
   @Override
   public String toSheetLine() {
-    return String.format("%s \"%s\" %s", KEYWORD, file, format);
+    return String.format("%s \"%s\" %s", KEYWORD, getFile(), getFormat());
   }
 
   @Override

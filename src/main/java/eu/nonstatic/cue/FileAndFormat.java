@@ -1,20 +1,22 @@
 package eu.nonstatic.cue;
 
+import static eu.nonstatic.cue.CueTools.unquote;
+
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 
-import static eu.nonstatic.cue.CueTools.unquote;
-
+/**
+ * This class is meant to be immutable
+ */
 @Getter
 @AllArgsConstructor
-@EqualsAndHashCode
+@EqualsAndHashCode // null-safe
 class FileAndFormat {
 
-  protected String file;
-  protected String format; // MP3, AIFF, WAVE, FLAC, BIN
-
+  protected final String file;
+  protected final String format; // MP3, AIFF, WAVE, FLAC, BIN
 
   static FileAndFormat parse(@NonNull String fileAndFormat) {
     String file, format;

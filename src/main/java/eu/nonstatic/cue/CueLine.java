@@ -1,11 +1,10 @@
 package eu.nonstatic.cue;
 
-import lombok.Getter;
-
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import lombok.Getter;
 
 @Getter
 class CueLine {

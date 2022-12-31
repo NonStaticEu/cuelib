@@ -2,6 +2,8 @@ package eu.nonstatic.cue;
 
 import java.util.List;
 import java.util.ListIterator;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public interface CueIterable<T> extends Iterable<T> {
 
@@ -57,5 +59,9 @@ public interface CueIterable<T> extends Iterable<T> {
     public void add(T t) {
       throw new UnsupportedOperationException("add");
     }
+  }
+
+  default Stream<T> stream() {
+    return StreamSupport.stream(spliterator(), false);
   }
 }

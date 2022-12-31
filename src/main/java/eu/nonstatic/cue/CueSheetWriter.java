@@ -1,6 +1,14 @@
 package eu.nonstatic.cue;
 
-import java.io.*;
+import static eu.nonstatic.cue.CueTools.quote;
+import static java.util.stream.Collectors.joining;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,9 +17,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Objects;
-
-import static eu.nonstatic.cue.CueTools.quote;
-import static java.util.stream.Collectors.joining;
 
 public class CueSheetWriter {
 

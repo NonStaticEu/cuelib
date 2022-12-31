@@ -1,9 +1,8 @@
 package eu.nonstatic.cue;
 
-import lombok.Getter;
-
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import lombok.Getter;
 
 @Getter
 public class CueContext {

@@ -1,14 +1,13 @@
 package eu.nonstatic.cue;
 
+import static eu.nonstatic.cue.CueTools.quote;
+
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
-import static eu.nonstatic.cue.CueTools.quote;
-
-@Getter
-@Setter
+@Getter @Setter
 @AllArgsConstructor
 @EqualsAndHashCode
 public class CueRemark implements CueEntity {
@@ -18,10 +17,6 @@ public class CueRemark implements CueEntity {
 
   private final String tag; // COMMENT, DISCID, UPC...
   private final String value;
-
-  public CueRemark deepCopy() {
-    return new CueRemark(tag, value);
-  }
 
   public boolean isComment() {
     return TAG_COMMENT.equalsIgnoreCase(tag);

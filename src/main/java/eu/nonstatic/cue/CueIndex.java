@@ -1,13 +1,12 @@
 package eu.nonstatic.cue;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
+import static eu.nonstatic.cue.TimeCode.FRAMES_PER_SECOND;
+import static eu.nonstatic.cue.TimeCode.SECONDS_PER_MINUTE;
 
 import java.time.Duration;
 import java.util.Comparator;
-
-import static eu.nonstatic.cue.TimeCode.FRAMES_PER_SECOND;
-import static eu.nonstatic.cue.TimeCode.SECONDS_PER_MINUTE;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 @Getter
 @EqualsAndHashCode

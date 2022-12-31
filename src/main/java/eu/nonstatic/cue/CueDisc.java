@@ -1,14 +1,20 @@
 package eu.nonstatic.cue;
 
+import java.nio.charset.Charset;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.nio.charset.Charset;
-import java.time.Duration;
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * https://en.wikipedia.org/wiki/Cue_sheet_(computing)
@@ -16,12 +22,11 @@ import java.util.stream.Collectors;
  * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets
  * Regards to Jeff Arnold
  */
-@Getter
-@Setter
+@Getter @Setter
 @EqualsAndHashCode
 public class CueDisc implements CueIterable<CueFile> {
 
-  public static final String UPC_EAN_REGEXP = "\\d{12,13}";
+  private static final String UPC_EAN_REGEXP = "\\d{12,13}";
   private static final Pattern UPC_EAN_PATTERN = Pattern.compile(UPC_EAN_REGEXP);
 
   private final String path;
@@ -33,14 +38,17 @@ public class CueDisc implements CueIterable<CueFile> {
   private String catalog; // MCN/UPC
   private String cdTextFile;
 
-  private final List<CueFile> files = new ArrayList<>();
-  private final List<CueRemark> remarks = new ArrayList<>();
-  private final List<CueOther> others = new ArrayList<>();
+  private final List<CueFile> files;
+  private final List<CueRemark> remarks;
+  private final List<CueOther> others;
 
 
   public CueDisc(String path, Charset charset) {
     this.path = path;
     this.charset = charset;
+    this.files = new ArrayList<>();
+    this.remarks = new ArrayList<>();
+    this.others = new ArrayList<>();
   }
 
   public void setCatalog(String catalog) {
@@ -84,13 +92,13 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public synchronized CueFile addFile(CueFile newFile, boolean renumber) {
     if(files.contains(newFile)) {
-      throw new IllegalArgumentException("The file already contains this track");
+      throw new IllegalArgumentException("The disc already contains this file");
     }
 
     int nextTrackNumber = getNextTrackNumber();
     Optional<CueTrack> firstNewTrack = newFile.getFirstTrack();
     if (renumber || firstNewTrack.isEmpty() || firstNewTrack.get().getNumber() == nextTrackNumber) {
-      CueFile newFileCopy = new CueFile(newFile.toFileAndFormat());
+      CueFile newFileCopy = new CueFile(newFile.getFileAndFormat());
       for (CueTrack newTrack : newFile) {
         newFileCopy.addTrack(newTrack, renumber);
       }
@@ -102,6 +110,11 @@ public class CueDisc implements CueIterable<CueFile> {
     }
   }
 
+  public void clearFiles() {
+    files.clear();
+  }
+
+  //TODO add Track i.s.o (or on top of) from CueFile
 
   public List<CueRemark> getRemarks() {
     return Collections.unmodifiableList(remarks);
@@ -109,6 +122,10 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public void addRemark(CueRemark remark) {
     remarks.add(remark);
+  }
+
+  public void clearRemarks() {
+    remarks.clear();
   }
 
   public List<CueFile> splitFiles() {
@@ -121,7 +138,7 @@ public class CueDisc implements CueIterable<CueFile> {
   public Collection<CueFile> groupTracks() {
     Map<FileAndFormat, CueFile> map = new LinkedHashMap<>();
     for (CueFile file : files) {
-      CueFile groupFile = map.computeIfAbsent(file.toFileAndFormat(), ff -> new CueFile(ff));
+      CueFile groupFile = map.computeIfAbsent(file.getFileAndFormat(), ff -> new CueFile(ff));
       file.getTracks().forEach(cueTrack -> groupFile.addTrack(cueTrack));
     }
     return map.values();
@@ -154,6 +171,127 @@ public class CueDisc implements CueIterable<CueFile> {
     return files.stream().mapToInt(CueFile::getTrackCount).sum();
   }
 
+  /**
+   * @return track 1
+   */
+  public Optional<CueTrack> getNumberOneTrack() {
+    return getTrack(CueTrack.TRACK_ONE);
+  }
+
+  public Optional<CueTrack> getTrack(int number) {
+    return files.stream().map(file -> file.getTrack(number))
+        .filter(track -> track.isPresent())
+        .map(Optional::get)
+        .findFirst();
+  }
+
+  /**
+   * @return first track of the disc. That is, track 1 if it exists.
+   */
+  public Optional<CueTrack> getFirstTrack() {
+    return getNumberOneTrack();
+  }
+
+  public Optional<CueTrack> getLastTrack() {
+    return files.stream().map(file -> file.getLastTrack())
+      .filter(track -> track.isPresent())
+      .map(Optional::get)
+        .findFirst();
+  }
+
+
+  /**
+   * In the end the file inside a CueFile may be used several times across the disc.
+   * Not sure this is legit in the cue format but we allow it.
+   */
+  public CueTrack moveTrackBefore(int movingNumber, int beforeNumber) {
+    int trackCount = getTrackCount();
+    checkTrackRange("Moving number", movingNumber, trackCount);
+    checkTrackRange("Before number", beforeNumber, trackCount);
+
+    // What if we don't want to move?
+    if(movingNumber == beforeNumber || movingNumber == beforeNumber-1) {
+      return getTrack(movingNumber).get();
+    }
+
+    List<FileAndTrack> resorterList = new ArrayList<>(getTrackCount());
+    for (CueFile cueFile : this) {
+      FileAndFormat ff = cueFile.getFileAndFormat();
+      for (CueTrack track : cueFile) {
+        if(track.number != movingNumber) {
+          if(track.number == beforeNumber) {
+            FileAndTrack movingFileAndTrack = getFileAndTrack(movingNumber).get();
+            resorterList.add(movingFileAndTrack);
+          }
+          resorterList.add(new FileAndTrack(ff, track));
+        }
+      }
+    }
+
+    CueTrack movedCueTrack = resetFiles(resorterList, movingNumber);
+    return movedCueTrack;
+  }
+
+
+  /**
+   * In the end the file inside a CueFile may be used several times across the disc.
+   * Not sure this is legit in the cue format but we allow it.
+   */
+  public synchronized CueTrack moveTrackAfter(int movingNumber, int afterNumber) {
+    int trackCount = getTrackCount();
+    checkTrackRange("Moving number", movingNumber, trackCount);
+    checkTrackRange("After number", afterNumber, trackCount);
+
+    // What if we don't want to move?
+    if(movingNumber == afterNumber || movingNumber == afterNumber+1) {
+      return getTrack(movingNumber).get();
+    }
+
+    List<FileAndTrack> ftList = new ArrayList<>(getTrackCount());
+    for (CueFile file : this) {
+      FileAndFormat ff = file.getFileAndFormat();
+      for (CueTrack track : file) {
+        if(track.number != movingNumber) {
+          ftList.add(new FileAndTrack(ff, track));
+          if(track.number == afterNumber) {
+            FileAndTrack movingFileAndTrack = getFileAndTrack(movingNumber).get();
+            ftList.add(movingFileAndTrack);
+          }
+        }
+      }
+    }
+
+    CueTrack movedCueTrack = resetFiles(ftList, movingNumber);
+    return movedCueTrack;
+  }
+
+  private CueTrack resetFiles(List<FileAndTrack> ftList, int movingNumber) {
+    files.clear();
+    CueTrack movedTrack = null;
+    CueFile currentFile = null;
+    FileAndFormat currentFf = null;
+    for (FileAndTrack fileAndTrack : ftList) {
+      if(!fileAndTrack.ff.equals(currentFf)) {
+        currentFf = fileAndTrack.ff;
+        currentFile = new CueFile(currentFf);
+        files.add(currentFile);
+      }
+      CueTrack addedTrack = currentFile.addTrack(fileAndTrack.track, true);
+      if(movedTrack == null && fileAndTrack.track.getNumber() == movingNumber) {
+        movedTrack = addedTrack;
+      }
+    }
+    return movedTrack;
+  }
+
+
+
+  private static void checkTrackRange(String varName, int trackNumber, int trackCount) {
+    if(trackNumber < CueTrack.TRACK_ONE || trackNumber > trackCount) {
+      throw new IllegalArgumentException(varName + ' ' + trackNumber + " is out of range [" + CueTrack.TRACK_ONE + "," + trackCount + "]");
+    }
+  }
+
   public int getNextTrackNumber() {
     return getLastFile()
         .map(cueTracks -> cueTracks.getNextTrackNumber().orElse(CueTrack.TRACK_ONE))
@@ -174,5 +312,28 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public void addOther(CueOther other) {
     others.add(other);
+  }
+
+  public void clearOthers() {
+    others.clear();
+  }
+
+
+  @AllArgsConstructor
+  private static class FileAndTrack {
+    FileAndFormat ff;
+    CueTrack track;
+  }
+
+  private Optional<FileAndTrack> getFileAndTrack(int number) {
+    for (CueFile cueFile : this) {
+      FileAndFormat ff = cueFile.getFileAndFormat();
+      for (CueTrack cueTrack : cueFile) {
+        if (cueTrack.number == number) {
+          return Optional.of(new FileAndTrack(ff, cueTrack));
+        }
+      }
+    }
+    return Optional.empty();
   }
 }

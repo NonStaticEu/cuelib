@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'maven-publish'
 }
 
@@ -11,12 +12,16 @@ repositories {
 }
 
 def lombokVersion = '1.18.24'
+def junitVersion = '5.9.1'
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
     implementation("com.ibm.icu:icu4j:71.1")
-    implementation("org.slf4j:slf4j-api:1.7.36")
+    implementation('org.slf4j:slf4j-api:2.0.1')
     compileOnly("org.projectlombok:lombok:$lombokVersion")
+
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 }
 
 configurations.implementation {
@@ -27,6 +32,18 @@ configurations.implementation {
 java {
     sourceCompatibility = JavaVersion.toVersion("11")
     targetCompatibility = JavaVersion.toVersion("11")
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true
+        html.enabled = true
+    }
 }
 
 publishing {
