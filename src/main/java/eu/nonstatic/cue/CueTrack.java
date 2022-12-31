@@ -1,13 +1,17 @@
 package eu.nonstatic.cue;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@Data
-public class CueTrack extends CueEntity {
+@Getter
+@Setter
+@EqualsAndHashCode
+public class CueTrack implements CueEntity, Comparable<CueTrack> {
 
   public static final String KEYWORD = CueWords.TRACK;
 
@@ -37,6 +41,7 @@ public class CueTrack extends CueEntity {
   }
 
   public void addIndex(CueIndex index) {
+    // TODO check numbering
     indexes.add(index);
   }
 
@@ -61,8 +66,24 @@ public class CueTrack extends CueEntity {
     others.add(other);
   }
 
+  public boolean hasHiddenTrack() {
+    return number == 1
+        && !indexes.isEmpty()
+        && indexes.get(0).getNumber() == 0;
+  }
+
+  @Override
+  public int compareTo(CueTrack cueTrack) {
+    return Integer.compare(number, cueTrack.number);
+  }
+
   @Override
   public String toSheetLine() {
     return String.format("%s %02d %s", KEYWORD, number, type);
+  }
+
+  @Override
+  public String toString() {
+    return toSheetLine();
   }
 }

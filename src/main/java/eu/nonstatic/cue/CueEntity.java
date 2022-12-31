@@ -1,12 +1,7 @@
 package eu.nonstatic.cue;
 
-public abstract class CueEntity {
+public interface CueEntity {
   // maybe getLineNumber()
 
-  public abstract String toSheetLine();
-
-  @Override
-  public String toString() {
-    return toSheetLine();
-  }
+  String toSheetLine();
 }

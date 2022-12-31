@@ -1,8 +1,5 @@
 package eu.nonstatic.cue;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
@@ -103,8 +100,8 @@ public class CueSheetReader implements CueWords {
               disc.setCatalog(unquote(tail));
               break;
             case CueFile.KEYWORD:
-              FileAndFormat ff = FileAndFormat.of(tail);
-              disc.addFile(readFile(ff.file, ff.format, cueLineReader, context));
+              FileAndFormat fileAndFormat = FileAndFormat.parse(tail);
+              disc.addFile(readFile(fileAndFormat, cueLineReader, context));
               break;
             case CDTEXTFILE:
               disc.setCdTextFile(unquote(tail));
@@ -146,9 +143,9 @@ public class CueSheetReader implements CueWords {
     return new CueOther(line.getKeyword(), unquote(line.getTail()));
   }
 
-  private static CueFile readFile(String fileName, String fileFormat, CueLineReader reader, CueContext context) throws IOException {
+  private static CueFile readFile(FileAndFormat fileAndFormat, CueLineReader reader, CueContext context) throws IOException {
     reader.mark(); // to avoid infinite loop on FILE followed by FILE
-    CueFile file = new CueFile(fileName, fileFormat);
+    CueFile file = new CueFile(fileAndFormat);
 
     CueLine line;
     while ((line = reader.readLine()) != null) {
@@ -246,26 +243,5 @@ public class CueSheetReader implements CueWords {
     int number = Integer.parseInt(cueLine.getTailWord(0));
     String timeCode = cueLine.getTailWord(1);
     return new CueIndex(number, timeCode);
-  }
-
-  @Getter
-  @AllArgsConstructor
-  static class FileAndFormat {
-
-    private String file;
-    private String format;
-
-    static FileAndFormat of(@NonNull String fileAndFormat) {
-      String file, format;
-      int sep = fileAndFormat.lastIndexOf(' ');
-      if (sep >= 0) {
-        file = fileAndFormat.substring(0, sep).trim();
-        format = fileAndFormat.substring(sep + 1);
-      } else {
-        file = fileAndFormat;
-        format = null;
-      }
-      return new FileAndFormat(unquote(file), format);
-    }
   }
 }

@@ -1,13 +1,17 @@
 package eu.nonstatic.cue;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 import static eu.nonstatic.cue.CueTools.quote;
 
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
-public class CueRemark extends CueEntity {
+@EqualsAndHashCode
+public class CueRemark implements CueEntity {
 
   public static final String KEYWORD = CueWords.REMARK;
   public static final String TAG_COMMENT = "COMMENT";
@@ -16,12 +20,16 @@ public class CueRemark extends CueEntity {
   private final String value;
 
 
-  private boolean isComment() {
+  public boolean isComment() {
     return TAG_COMMENT.equalsIgnoreCase(tag);
   }
 
-  private boolean isSeveralWords() {
+  public boolean isSeveralWords() {
     return value != null && value.split("\\s+").length > 1;
+  }
+
+  private boolean requiresQuotes() {
+    return isComment() || isSeveralWords() || value.length() == 0;
   }
 
   @Override
@@ -36,7 +44,8 @@ public class CueRemark extends CueEntity {
     return sb.toString();
   }
 
-  private boolean requiresQuotes() {
-    return isComment() || isSeveralWords() || value.length() == 0;
+  @Override
+  public String toString() {
+    return toSheetLine();
   }
 }

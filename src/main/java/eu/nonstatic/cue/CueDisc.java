@@ -1,18 +1,20 @@
 package eu.nonstatic.cue;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * https://en.wikipedia.org/wiki/Cue_sheet_(computing) https://wiki.hydrogenaud.io/index.php?title=Cue_sheet
  * https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets
  */
-@Data
+@Getter
+@Setter
+@EqualsAndHashCode
 public class CueDisc {
 
   private final String path;
@@ -43,6 +45,7 @@ public class CueDisc {
   }
 
   public void addFile(CueFile file) {
+    // TODO check overall tracks/indexes numbering
     files.add(file);
   }
 
@@ -56,6 +59,22 @@ public class CueDisc {
 
   public List<CueFile> splitTracks() {
     return files.stream().flatMap(file -> file.splitTracks().stream()).collect(Collectors.toList());
+  }
+
+  /**
+   * Groups tracks per file, in case the file was split per track whereas it shouldn't have been It's assuming tracks are in the right order
+   */
+  public Collection<CueFile> groupTracks() {
+    Map<FileAndFormat, CueFile> map = new LinkedHashMap<>();
+    for (CueFile file : files) {
+      CueFile groupFile = map.computeIfAbsent(file.getFileAndFormat(), ff -> new CueFile(ff));
+      file.getTracks().forEach(cueTrack -> groupFile.addTrack(cueTrack));
+    }
+    return map.values();
+  }
+
+  public boolean hasHiddenTrack() {
+    return !files.isEmpty() && files.get(0).hasHiddenTrack();
   }
 
   public List<CueTrack> getTracks() {
