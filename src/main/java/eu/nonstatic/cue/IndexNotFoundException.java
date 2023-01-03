@@ -9,37 +9,21 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
-
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
 
-/**
- * For non-standard lines (eg ARTIST or REM-less GENRE)
- */
-@Getter @Setter
-@AllArgsConstructor
-@EqualsAndHashCode
-public class CueOther implements CueEntity {
+@Getter
+public class IndexNotFoundException extends RuntimeException {
 
-  @NonNull
-  private final String keyword;
-  private final String value;
+  private final int[] indexes;
 
-  @Override
-  public String toSheetLine() {
-    StringBuilder sb = new StringBuilder(keyword);
-    if (value != null) {
-      sb.append(' ').append(quote(value));
-    }
-    return sb.toString();
+  public IndexNotFoundException(int... indexes) {
+    this("No index " + Arrays.stream(indexes).mapToObj(Integer::toString).collect(Collectors.joining(",")) + " on track", indexes);
   }
 
-  @Override
-  public String toString() {
-    return toSheetLine();
+  public IndexNotFoundException(String message, int... indexes) {
+    super(message);
+    this.indexes = indexes;
   }
 }

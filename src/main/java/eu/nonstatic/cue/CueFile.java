@@ -1,5 +1,15 @@
+/**
+ * Cuelib
+ * Copyright (C) 2022 NonStatic
+ *
+ * This file is part of cuelib.
+ * cuelib is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *  is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with . If not, see <https://www.gnu.org/licenses/>.
+ */
 package eu.nonstatic.cue;
 
+import eu.nonstatic.cue.CueTrack.TimeCodeValidation;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,66 +28,54 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
 
   public static final String KEYWORD = CueWords.FILE;
 
+  private static final String RANGE_MESSAGE_TRACK_INDEX = "Track index";
+
   @Getter(AccessLevel.PACKAGE)
-  private FileAndFormat fileAndFormat;
+  private FileAndType fileAndType;
 
   private final ArrayList<CueTrack> tracks;
+  protected boolean renumberingNecessary;
 
   // FileAndFormat isn't a first class citizen, hence ctor visibility
-  CueFile(FileAndFormat fileAndFormat) {
-    this.fileAndFormat = fileAndFormat;
+  CueFile(FileAndType fileAndType) {
+    this.fileAndType = fileAndType;
     this.tracks = new ArrayList<>(12);
   }
 
   public CueFile(String file, String format) {
-    this(new FileAndFormat(file, format));
+    this(new FileAndType(file, format));
   }
 
-  public CueFile(String file, String format, CueTrack track) {
-    this(file, format, List.of(track));
+  public CueFile(String file, String format, CueTrack... tracks) {
+    this(file, format, List.of(tracks));
   }
 
   public CueFile(String file, String format, Collection<? extends CueTrack> tracks) {
     this(file, format);
-    tracks.forEach(track -> addTrack(track));
+    tracks.forEach(this::addTrack);
   }
 
   public String getFile() {
-    return fileAndFormat.getFile();
+    return fileAndType.getFile();
   }
 
   public String getFormat() {
-    return fileAndFormat.getFormat();
+    return fileAndType.getType();
   }
 
   public CueFile deepCopy() {
-    CueFile newFile = new CueFile(fileAndFormat);
-    tracks.forEach(track -> newFile.tracks.add(track.deepCopy()));
-    return newFile;
+    CueFile fileCopy = new CueFile(fileAndType);
+    tracks.forEach(track -> fileCopy.addTrackUnsafe(track.deepCopy()));
+    return fileCopy;
+  }
+
+  @Override
+  public CueIterator<CueTrack> iterator() {
+    return new CueIterator<>(tracks);
   }
 
   public List<CueTrack> getTracks() {
     return Collections.unmodifiableList(tracks);
-  }
-
-  public CueTrack getTrack(int number) {
-    if(!tracks.isEmpty()) {
-      int firstNumber = getFirstTrack().getNumber();
-      int lastNumber = getLastTrack().getNumber();
-      if (firstNumber <= number && number <= lastNumber) {
-        for (CueTrack track : tracks) {
-          if (track.getNumber() == number) {
-            return track;
-          }
-        }
-      }
-      // else no exception because we may be calling from a CueDisc throughout all its CueFiles
-    }
-    return null;
-  }
-
-  public CueTrack getTrackNumberOne() {
-    return getTrack(CueTrack.TRACK_ONE);
   }
 
   /**
@@ -91,13 +89,6 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     return tracks.isEmpty() ? null : tracks.get(tracks.size() - 1);
   }
 
-  Integer getLastTrackNumber() {
-    CueTrack lastTrack = getLastTrack();
-    return lastTrack != null
-        ? lastTrack.getNumber()
-        : null;
-  }
-
   public int getTrackCount() {
     return tracks.size();
   }
@@ -106,139 +97,119 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
     tracks.clear();
   }
 
+  protected List<FileAndTrack> split() {
+    return tracks.stream().map(track -> new FileAndTrack(fileAndType, track)).collect(Collectors.toList());
+  }
+
   /**
-   * @return splits this CueFile into as many CueFiles as tracks
+   * It is not possible to check whether we have max 99 tracks, it has to be done at the disc level before writing
+   * Not checking we have a pregap on 2 files for instance, that might be the case across several files anyway. Better check consistency at disc level.
    */
-  public List<CueFile> split() {
-    return tracks.stream().map(track -> new CueFile(getFile(), getFormat(), track)).collect(Collectors.toList());
+  public CueTrack addTrack(CueTrack track) {
+    return addTrack(tracks.size(), track);
   }
 
-  CueTrack addTrack(CueTrack newTrack) {
-    return addTrack(newTrack, false);
-  }
-
-  synchronized CueTrack addTrack(CueTrack newTrack, boolean renumber) {
-    if(tracks.contains(newTrack)) {
+  public CueTrack addTrack(int idx, CueTrack track) {
+    if(tracks.contains(track)) {
       throw new IllegalArgumentException("The file already contains this track");
     }
+    CueTools.validateRange(RANGE_MESSAGE_TRACK_INDEX, idx, 0, tracks.size());
 
-    if(newTrack.hasNumber() && renumber) {
-      newTrack = newTrack.deepCopy(null);
-    }
-
-    // FIXME not satisfying, one may be able to inject several tracks 1 in several files
-    Integer lastTrackNumber = getLastTrackNumber();
-    int nextTrackNumber = lastTrackNumber != null ? lastTrackNumber+1 : CueTrack.TRACK_ONE;
-
-    if (newTrack.hasNumber()) {
-      int newNumber = newTrack.getNumber();
-      if (newNumber > nextTrackNumber) {
-        throw new IllegalArgumentException("Track number " + newNumber + " is out of range [" + CueTrack.TRACK_ONE + "," + nextTrackNumber + "]");
-      } else {
-        CueTrack newTrackCopy = newTrack.deepCopy();
-        if (newNumber == nextTrackNumber) { // it's chaining
-          tracks.add(newTrackCopy); // fast-track version of the else clause below
-        } else { // now we're sure 1 =< newNumber =< lastNumber
-          int t = 0;
-          for (; t < tracks.size(); t++) {
-            int currentNumber = tracks.get(t).getNumber();
-            if (currentNumber == newNumber) {
-              break;
-            }
-          }
-
-          tracks.add(t, newTrackCopy);
-
-          // shift the remaining tracks
-          while (++t < tracks.size()) {
-            tracks.get(t).number++;
-          }
-        }
-        return newTrackCopy;
-      }
-    } else {
-      newTrack.setNumberOnce(nextTrackNumber);
-      tracks.add(newTrack); // it's OK to store it without copying because it's obviously not part of a file yet
-      return newTrack;
-    }
+    renumberingNecessary = true;
+    CueTrack trackCopy = track.deepCopy();
+    addTrackUnsafe(idx, trackCopy);
+    return trackCopy;
   }
 
-  public CueTrack removeTrack(int number) {
-    if (tracks.isEmpty()) {
-      throw new IllegalArgumentException("Track list is empty");
-    }
-
-    int lastNumber = getLastTrack().getNumber();
-    if (number < CueTrack.TRACK_ONE || number > lastNumber) {
-      throw new IllegalArgumentException("Track number " + number + " is out of range [" + CueTrack.TRACK_ONE + "," + lastNumber + "]");
-    } else {
-      CueTrack targetTrack = null;
-
-      Iterator<CueTrack> it = tracks.iterator();
-      while (it.hasNext()) {
-        targetTrack = it.next();
-        if (targetTrack.getNumber() == number) {
-          it.remove();
-          break;
-        }
-      }
-      // shift the remaining tracks
-      it.forEachRemaining(track -> track.number--);
-
-      return targetTrack;
-    }
+  protected void addTrackUnsafe(CueTrack track) {
+    tracks.add(track);
   }
 
-  @Override
-  public CueIterator<CueTrack> iterator() {
-    return new CueIterator<>(tracks);
+  protected void addTrackUnsafe(int idx, CueTrack track) {
+    tracks.add(idx, track);
+  }
+
+  public CueTrack removeTrack(int idx) {
+    CueTools.validateRange(RANGE_MESSAGE_TRACK_INDEX, idx, 0, tracks.size()-1);
+    return tracks.remove(idx);
   }
 
   /**
-   * @return true if we have a track 1 with index 0
+   * The cue file doesn't give the last track's ending time-code, so we need to know its run length.
+   * @param idx
+   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
+   * @return the track's duration. if the track's diff with the next one is negative, then the returned value is the diff with the end of the file instead
+   * @throws IllegalTrackTypeException if this track or the next one is not audio
+   * @throws IndexNotFoundException if the needed index(es) for the computation do(es)n't exist
+   * @throws NegativeDurationException if the last track 's duration is requested and the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
    */
-  public boolean hasHiddenTrack() {
-    CueTrack numberOneTrack = getTrackNumberOne();
-    return numberOneTrack != null && numberOneTrack.hasHiddenTrack();
+  public Duration getTrackDuration(int idx, Duration fileDuration) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    return getTrackDuration(idx, fileDuration, true);
   }
 
-  public Map<CueTrack, Duration> getTracksDurations(Duration fileDuration) {
-    var map = new LinkedHashMap<CueTrack, Duration>();
+  /**
+   * @param idx
+   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
+   * @param allowDisorderedTimeCodes
+   * @return the track's duration
+   * @throws IllegalTrackTypeException if this track or the next one is not audio
+   * @throws IndexNotFoundException if the needed index(es) for the computation do(es)n't exist
+   * @throws NegativeDurationException if allowDisorderedTimeCodes is false and the track's length is negative,
+   * or if the last track 's duration is requested and the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
+   */
+  public Duration getTrackDuration(int idx, Duration fileDuration, boolean allowDisorderedTimeCodes) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    int trackCount = tracks.size();
+    CueTools.validateRange(RANGE_MESSAGE_TRACK_INDEX, idx, 0, trackCount-1);
 
-    if (!tracks.isEmpty()) {
+    CueTrack track = tracks.get(idx);
+    if(idx < trackCount-1) {
+      CueTrack nextTrack = tracks.get(idx+1);
+      return track.until(nextTrack, fileDuration, allowDisorderedTimeCodes);
+    } else { // last track
+      return track.until(null, fileDuration);
+    }
+  }
+
+  /**
+   * Computes the tracks durations
+   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
+   * @return the track's duration. if the track's diff with the next one is negative, then the returned value is the diff with the end of the file instead
+   * @throws IllegalTrackTypeException if at least one track is not audio
+   * @throws IndexNotFoundException if the needed index(es) for the computations do(es)n't exist
+   * @throws NegativeDurationException if the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
+   */
+  public Map<CueTrack, Duration> getTracksDurations(Duration fileDuration) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    return getTracksDurations(fileDuration, true);
+  }
+
+  /**
+   * Computes the tracks durations
+   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
+   * @param allowDisorderedTimeCodes
+   * @return the tracks' durations
+   * @throws IllegalTrackTypeException if at least one track is not audio
+   * @throws IndexNotFoundException if the needed index(es) for the computations do(es)n't exist
+   * @throws NegativeDurationException if allowDisorderedTimeCodes is false and timecodes are inconsistent (meaning at least one track length turns out to be negative)
+   */
+  public Map<CueTrack, Duration> getTracksDurations(Duration fileDuration, boolean allowDisorderedTimeCodes) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    if (tracks.isEmpty()) {
+      return Map.of();
+    } else {
+      var map = new LinkedHashMap<CueTrack, Duration>();
       Iterator<CueTrack> tit = tracks.iterator();
       CueTrack currentTrack = tit.next();
 
       while (tit.hasNext()) {
         CueTrack nextTrack = tit.next();
-        map.put(currentTrack, currentTrack.until(nextTrack, null));
+        map.put(currentTrack, currentTrack.until(nextTrack, fileDuration, allowDisorderedTimeCodes));
         currentTrack = nextTrack;
       }
 
       map.put(currentTrack, currentTrack.until(null, fileDuration));
+      return map;
     }
-    return map;
   }
 
-  /**
-   * The cue file doesn't give the last track's ending time-code, so we need to know its run length.
-   * @param number
-   * @param fileDuration for the last track
-   * @return
-   */
-  public Duration getTrackDuration(int number, Duration fileDuration) {
-    Iterator<CueTrack> tit = tracks.iterator();
-    while (tit.hasNext()) {
-      CueTrack track = tit.next();
-      if (track.getNumber() == number) {
-        CueTrack nextTrack = tit.hasNext() ? tit.next() : null;
-        return track.until(nextTrack, fileDuration);
-      } else if (track.getNumber() > number) { // number must be in a file preceding this one
-        break;
-      }
-    } // number must be in a file following this one
-    throw new IllegalArgumentException("Track " + number + " isn't part of the file " + fileAndFormat);
-  }
 
   public List<CueIndex> getIndexes() {
     return tracks.stream().flatMap(track -> track.getIndexes().stream()).collect(Collectors.toList());
@@ -246,6 +217,25 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
 
   public int getIndexCount() {
     return tracks.stream().mapToInt(CueTrack::getIndexCount).sum();
+  }
+
+  /**
+   * This method doesn't check tracks' numbers consistency, or whether there is at most one pregap. This can only be done at the disc level.
+   * Note: in theory a cue may not respect timecodes ordering (next > previous)
+   */
+  public List<String> checkConsistency(boolean orderedTimeCodes) {
+    var issues = new ArrayList<String>();
+    tracks.forEach(track -> issues.addAll(track.checkConsistency(false)));
+
+    if(orderedTimeCodes) {
+      CueIndex latestIndex = null;
+      for (CueTrack track : getTracks()) {
+        TimeCodeValidation timeCodeValidation = track.checkTimeCodesChaining(latestIndex);
+        issues.addAll(timeCodeValidation.issues);
+        latestIndex = timeCodeValidation.latest;
+      }
+    }
+    return issues;
   }
 
   @Override

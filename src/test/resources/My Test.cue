@@ -1,0 +1,81 @@
+REM GENRE Some genre
+REM DATE 2000
+REM COMPOSER ""
+REM DISCID B12C345D
+REM COMMENT "Some comment with é"
+REM WHATEVER
+PERFORMER "Some performer"
+TITLE "Some title"
+SONGWRITER "Some writer"
+CATALOG "0 696969 424242"
+CDTEXTFILE "cdtextfile"
+UNKNOWN ThiNG
+FILE "some file 1.mp3" MP3
+  TRACK 01 AUDIO
+    TITLE "Title 1"
+    PERFORMER "Performer 1"
+    FLAGS DCP
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE Title 2
+    PERFORMER "Performer 2"
+    FLAGS 4CH
+    INDEX 01 00:13:02
+  TRACK 03 AUDIO
+    TITLE "Title 3"
+    PERFORMER "Performer 3"
+    REM "My Remark"
+    INDEX 01 01:42:25
+    INDEX 02 03:18:55
+  TRACK 04 AUDIO
+    TITLE "Title 4"
+    PERFORMER "Performer 4"
+    ISRC FR-XXX-42-12345
+    INDEX 01 08:00:18
+FILE "some file 2.WAV" WAVE
+  TRACK 05 AUDIO
+    TITLE "Title 5"
+    PERFORMER "Performer 5"
+    INDEX 01 14:44:69
+  TRACK 06 AUDIO
+    TITLE Title 6
+    SONGWRITER Songwriter 6
+    PERFORMER "Performer 6"
+    FLAGS PRE
+    INDEX 01 14:58:15
+  TRACK 07 AUDIO
+    TITLE "Title 7"
+    PERFORMER Performer 7
+    PREGAP 00:00:04
+    POSTGAP 00:01:02
+    INDEX 01 22:31:60
+  TRACK 08 AUDIO
+    TITLE "Title 8"
+    PERFORMER "Performer 8"
+    INDEX 01 23:55:42
+    INDEX 02 28:07:74
+    INDEX 03 30:33:21
+  TRACK 09 AUDIO
+    TITLE "Title 9"
+    PERFORMER "Performer 9"
+    FLAGS DCP SCMS PRE
+    INDEX 01 32:25:08
+FILE "some file 1.mp3" MP3
+  TRACK 10 AUDIO
+    TITLE "Title 10"
+    PERFORMER "Performer 10"
+    FLAGS SCMS PRE
+    INDEX 01 34:46:14
+  TRACK 11 AUDIO
+    TITLE "Title 11"
+    PERFORMER "Performer 11"
+    FLAGS 4CH DCP
+    INDEX 01 48:11:13
+  TRACK 12 AUDIO
+    TITLE "Title 12"
+    PERFORMER "Performer 12"
+    INDEX 01 58:58:57
+  TRACK 13 AUDIO
+    TITLE "Title 13"
+    PERFORMER "Performer 13"
+    INDEX 01 61:16:61

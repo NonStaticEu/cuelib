@@ -17,8 +17,8 @@ def junitVersion = '5.9.1'
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-    implementation("com.ibm.icu:icu4j:71.1")
-    implementation('org.slf4j:slf4j-api:2.0.1')
+    implementation('com.ibm.icu:icu4j:72.1')
+    implementation('org.slf4j:slf4j-api:2.0.5')
     compileOnly("org.projectlombok:lombok:$lombokVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
@@ -35,16 +35,21 @@ java {
     targetCompatibility = JavaVersion.toVersion("11")
 }
 
+// use JUnit 5 platform
 test {
+    testLogging.showStandardStreams = true
     useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
 
 jacocoTestReport {
     reports {
-        xml.enabled = true
+        xml.enabled true
         html.enabled = true
     }
+}
+jacocoTestReport {
+    dependsOn test
 }
 
 publishing {

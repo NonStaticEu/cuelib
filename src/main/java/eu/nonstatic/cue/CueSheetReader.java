@@ -1,6 +1,14 @@
+/**
+ * Cuelib
+ * Copyright (C) 2022 NonStatic
+ *
+ * This file is part of cuelib.
+ * cuelib is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *  is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with . If not, see <https://www.gnu.org/licenses/>.
+ */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.isCueFile;
 import static eu.nonstatic.cue.CueTools.unquote;
 import static eu.nonstatic.cue.CueWords.CATALOG;
 import static eu.nonstatic.cue.CueWords.CDTEXTFILE;
@@ -13,6 +21,8 @@ import static eu.nonstatic.cue.CueWords.SONGWRITER;
 import static eu.nonstatic.cue.CueWords.TITLE;
 import static java.util.stream.Collectors.toList;
 
+import com.ibm.icu.text.CharsetDetector;
+import com.ibm.icu.text.CharsetMatch;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -21,19 +31,71 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class CueSheetReader {
 
-  public static final String NO_KEYWORD_MESSAGE = "{}#{}: No keyword on line: {}";
+  public static final String CUE_EXTENSION = "cue";
+  public static final Charset DEFAULT_CHARSET = StandardCharsets.ISO_8859_1;
+  private static final int DEFAULT_CONFIDENCE = 30;
 
-  private CueSheetReader() {}
+  private static final String MESSAGE_NO_KEYWORD = "{}#{}: No keyword on line: {}";
+  protected static final String MESSAGE_NOT_CUE = "Not a cue file: ";
 
-  public static CueDisc readCueSheet(File cueFile) throws IOException {
+  private final int confidence;
+  private final Charset fallbackCharset;
+
+  public CueSheetReader() {
+    this(DEFAULT_CONFIDENCE, DEFAULT_CHARSET);
+  }
+
+  public CueSheetReader(int confidence, Charset fallbackCharset) {
+    this.confidence = confidence;
+    this.fallbackCharset = fallbackCharset;
+  }
+
+  public CueContext detectEncoding(File file) {
+    return detectEncoding(file.toPath());
+  }
+
+  public CueContext detectEncoding(Path file) {
+    String name = file.toString();
+    try (InputStream is = Files.newInputStream(file)) {
+      Charset charset = detectEncoding(is);
+      return new CueContext(file, charset);
+    } catch (IOException e) {
+      log.debug("Fallback to {} for {}: {}", fallbackCharset, file.toAbsolutePath(), e.getMessage(), e);
+      return new CueContext(name, fallbackCharset);
+    }
+  }
+
+  public Charset detectEncoding(InputStream is) throws IOException {
+    Charset charset;
+
+    if(!is.markSupported()) { // icu calls reset() on the stream, so it needs to support mark()
+      is = new BufferedInputStream(is); // no try,
+    }
+
+    CharsetDetector cd = new CharsetDetector();
+    cd.setText(is);
+    CharsetMatch cm = cd.detect(); // calls reset() !
+    if (cm != null && cm.getConfidence() > confidence) {
+      charset = Charset.forName(cm.getName());
+    } else {
+      log.debug("Confidence low. Fallback to {}", fallbackCharset);
+      charset = fallbackCharset;
+    }
+    return charset;
+  }
+
+
+  public CueDisc readCueSheet(File cueFile) throws IOException {
     return readCueSheet(cueFile.toPath());
   }
 
@@ -41,25 +103,22 @@ public class CueSheetReader {
     return readCueSheet(cueFile.toPath(), charset);
   }
 
-  public static CueDisc readCueSheet(Path cueFile) throws IOException {
-    checkCueExtension(cueFile);
-    try (BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(cueFile))) {
-      CueContext context = new CueTools().detectEncoding(cueFile.toString(), bis); // the stream is reset after detection
-      return readCueSheet(bis, context);
-    }
+  public CueDisc readCueSheet(Path cueFile) throws IOException {
+    CueContext context = detectEncoding(cueFile);
+    return readCueSheet(cueFile, context.getCharset());
   }
 
   public static CueDisc readCueSheet(Path cueFile, Charset charset) throws IOException {
-    checkCueExtension(cueFile);
+    if (!isCueFile(cueFile)) {
+      throw new IllegalArgumentException(MESSAGE_NOT_CUE + cueFile);
+    }
     try (InputStream inputStream = Files.newInputStream(cueFile)) {
       return readCueSheet(inputStream, new CueContext(cueFile, charset));
     }
   }
 
-  private static void checkCueExtension(Path cueFile) throws IllegalArgumentException {
-    if (!isCueFile(cueFile)) {
-      throw new IllegalArgumentException("Not a cue file: " + cueFile);
-    }
+  public static boolean isCueFile(@NonNull Path file) {
+    return Files.isRegularFile(file) && CueTools.isExt(file.getFileName().toString(), CUE_EXTENSION);
   }
 
   public static CueDisc readCueSheet(URL cueFile,  Charset charset) throws IOException {
@@ -102,9 +161,10 @@ public class CueSheetReader {
 
   public static CueDisc readCueSheet(CueLineReader cueLineReader, CueContext context) throws IOException {
     CueDisc disc = new CueDisc(context.getPath(), context.getCharset());
+    int previousTrackNum = 0;
 
     CueLine line;
-    while ((line = cueLineReader.readLine()) != null) {
+    while((line = cueLineReader.readLine()) != null) {
       if (!line.isEmpty()) {
         String keyword = line.getKeyword();
         if (keyword != null) {
@@ -124,8 +184,10 @@ public class CueSheetReader {
               disc.setCatalog(unquote(tail));
               break;
             case CueFile.KEYWORD:
-              FileAndFormat fileAndFormat = FileAndFormat.parse(tail);
-              disc.addFile(readFile(fileAndFormat, cueLineReader, context));
+              FileAndType fileAndType = FileAndType.parse(tail);
+              CueFile file = readFile(fileAndType, cueLineReader, context, previousTrackNum);
+              disc.addFileUnsafe(file);
+              previousTrackNum = file.getLastTrack().number;
               break;
             case CDTEXTFILE:
               disc.setCdTextFile(unquote(tail));
@@ -138,7 +200,7 @@ public class CueSheetReader {
               disc.addOther(readOther(line));
           }
         } else {
-          log.warn(NO_KEYWORD_MESSAGE, context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
     }
@@ -147,7 +209,8 @@ public class CueSheetReader {
 
 
   /**
-   * REM DISCID 750FF008 REM COMMENT "ExactAudioCopy v1.0b3"
+   * REM DISCID 750FF008
+   * REM COMMENT "ExactAudioCopy v1.0b3"
    */
   private static CueRemark readRemark(CueLine line) {
     String tail = line.getTail();
@@ -155,8 +218,12 @@ public class CueSheetReader {
       int sep = tail.indexOf(' ');
       if (sep >= 0) {
         String type = tail.substring(0, sep);
-        String content = tail.substring(sep + 1).trim();
-        return new CueRemark(type, unquote(content));
+        if(CueRemark.TAGS.contains(type)) {
+          String content = tail.substring(sep + 1).trim();
+          return new CueRemark(type, unquote(content));
+        } else {
+          return new CueRemark(null, unquote(tail));
+        }
       }
     }
 
@@ -167,9 +234,9 @@ public class CueSheetReader {
     return new CueOther(line.getKeyword(), unquote(line.getTail()));
   }
 
-  private static CueFile readFile(FileAndFormat fileAndFormat, CueLineReader reader, CueContext context) throws IOException {
+  private static CueFile readFile(FileAndType fileAndType, CueLineReader reader, CueContext context, int previousTrackNum) throws IOException {
     reader.mark(); // to avoid infinite loop on FILE followed by FILE
-    CueFile file = new CueFile(fileAndFormat);
+    CueFile file = new CueFile(fileAndType);
 
     CueLine line;
     while ((line = reader.readLine()) != null) {
@@ -183,7 +250,8 @@ public class CueSheetReader {
             case CueTrack.KEYWORD:
               int number = Integer.parseInt(line.getTailWord(0));
               String type = line.getTailWord(1);
-              file.addTrack(readTrack(number, type, reader, context));
+              file.addTrackUnsafe(readTrack(number, type, reader, context)); // cannot control track numbers' consistency/chaining
+              file.renumberingNecessary = file.renumberingNecessary || (number != ++previousTrackNum);
               break;
             default:
               log.warn("{}: Unknown file line: {}", context.getPath(), line.getRaw());
@@ -192,7 +260,7 @@ public class CueSheetReader {
               return file;
           }
         } else {
-          log.warn(NO_KEYWORD_MESSAGE, context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
@@ -250,7 +318,7 @@ public class CueSheetReader {
               track.addOther(readOther(line));
           }
         } else {
-          log.warn(NO_KEYWORD_MESSAGE, context.getPath(), line.getLineNumber(), line.getRaw());
+          log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();

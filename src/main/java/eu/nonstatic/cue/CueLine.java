@@ -1,3 +1,12 @@
+/**
+ * Cuelib
+ * Copyright (C) 2022 NonStatic
+ *
+ * This file is part of cuelib.
+ * cuelib is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *  is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with . If not, see <https://www.gnu.org/licenses/>.
+ */
 package eu.nonstatic.cue;
 
 import java.util.List;
@@ -15,7 +24,7 @@ class CueLine {
   private final String tail;
   private final List<String> tailParts;
 
-  private static final Pattern splitter = Pattern.compile("\\s+");
+  private static final Pattern SPACING_PATTERN = Pattern.compile("\\s+");
 
   CueLine(int lineNumber, String line) {
     this.lineNumber = lineNumber;
@@ -25,7 +34,7 @@ class CueLine {
     if (sep >= 0) {
       this.keyword = this.raw.substring(0, sep).toUpperCase(Locale.ROOT);
       this.tail = this.raw.substring(sep + 1).trim();
-      this.tailParts = splitter.splitAsStream(this.tail).collect(Collectors.toList());
+      this.tailParts = SPACING_PATTERN.splitAsStream(this.tail).collect(Collectors.toList());
     } else {
       this.keyword = this.raw;
       this.tail = null;

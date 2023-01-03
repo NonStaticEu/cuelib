@@ -9,37 +9,20 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+import org.junit.jupiter.api.Test;
 
-/**
- * For non-standard lines (eg ARTIST or REM-less GENRE)
- */
-@Getter @Setter
-@AllArgsConstructor
-@EqualsAndHashCode
-public class CueOther implements CueEntity {
+class CueFlagTest {
 
-  @NonNull
-  private final String keyword;
-  private final String value;
-
-  @Override
-  public String toSheetLine() {
-    StringBuilder sb = new StringBuilder(keyword);
-    if (value != null) {
-      sb.append(' ').append(quote(value));
-    }
-    return sb.toString();
+  @Test
+  void should_parse_flag() {
+    assertEquals(CueFlag.FOUR_CHANNEL_AUDIO, CueFlag.flagOf("4CH"));
   }
 
-  @Override
-  public String toString() {
-    return toSheetLine();
+  @Test
+  void should_rject_unknown_flag() {
+    assertThrows(IllegalArgumentException.class, () -> CueFlag.flagOf("WHATEVER"));
   }
 }

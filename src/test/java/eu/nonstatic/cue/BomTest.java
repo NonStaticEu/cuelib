@@ -9,37 +9,28 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+import java.io.IOException;
+import java.net.URL;
+import org.junit.jupiter.api.Test;
 
-/**
- * For non-standard lines (eg ARTIST or REM-less GENRE)
- */
-@Getter @Setter
-@AllArgsConstructor
-@EqualsAndHashCode
-public class CueOther implements CueEntity {
+class BomTest {
 
-  @NonNull
-  private final String keyword;
-  private final String value;
+  static URL url = CueDiscTest.class.getResource("/Bom Test.cue");
 
-  @Override
-  public String toSheetLine() {
-    StringBuilder sb = new StringBuilder(keyword);
-    if (value != null) {
-      sb.append(' ').append(quote(value));
-    }
-    return sb.toString();
+  @Test
+  void should_read_bom() throws IOException {
+    byte[] bom = Bom.read(url.openStream());
+    assertEquals(Bom.BOM_UTF_8, bom);
   }
 
-  @Override
-  public String toString() {
-    return toSheetLine();
+  @Test
+  void should_not_have_bom() throws IOException {
+    URL noBomUrl = CueDiscTest.class.getResource("/My Test.cue");
+    byte[] bom = Bom.read(noBomUrl.openStream());
+    assertNull(bom);
   }
+
 }

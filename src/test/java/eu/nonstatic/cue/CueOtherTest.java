@@ -9,37 +9,21 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+import org.junit.jupiter.api.Test;
 
-/**
- * For non-standard lines (eg ARTIST or REM-less GENRE)
- */
-@Getter @Setter
-@AllArgsConstructor
-@EqualsAndHashCode
-public class CueOther implements CueEntity {
+class CueOtherTest {
 
-  @NonNull
-  private final String keyword;
-  private final String value;
+  @Test
+  void should_give_tostring() {
+    CueOther other = new CueOther("MY_KEY", "My Comment");
+    assertEquals("MY_KEY \"My Comment\"", other.toString());
 
-  @Override
-  public String toSheetLine() {
-    StringBuilder sb = new StringBuilder(keyword);
-    if (value != null) {
-      sb.append(' ').append(quote(value));
-    }
-    return sb.toString();
-  }
+    CueOther other2 = new CueOther("MY_KEY", null);
+    assertEquals("MY_KEY", other2.toString());
 
-  @Override
-  public String toString() {
-    return toSheetLine();
+    assertThrows(NullPointerException.class, () -> new CueOther(null, "My Value"));
   }
 }

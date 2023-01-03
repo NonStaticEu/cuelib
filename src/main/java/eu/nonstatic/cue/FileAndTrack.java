@@ -9,37 +9,12 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
+class FileAndTrack {
+    final FileAndType ff;
+    final CueTrack track;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
-
-/**
- * For non-standard lines (eg ARTIST or REM-less GENRE)
- */
-@Getter @Setter
-@AllArgsConstructor
-@EqualsAndHashCode
-public class CueOther implements CueEntity {
-
-  @NonNull
-  private final String keyword;
-  private final String value;
-
-  @Override
-  public String toSheetLine() {
-    StringBuilder sb = new StringBuilder(keyword);
-    if (value != null) {
-      sb.append(' ').append(quote(value));
+    public FileAndTrack(FileAndType ff, CueTrack track) {
+      this.ff = ff;
+      this.track = track;
     }
-    return sb.toString();
   }
-
-  @Override
-  public String toString() {
-    return toSheetLine();
-  }
-}

@@ -9,37 +9,17 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
-
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
 
-/**
- * For non-standard lines (eg ARTIST or REM-less GENRE)
- */
-@Getter @Setter
-@AllArgsConstructor
-@EqualsAndHashCode
-public class CueOther implements CueEntity {
+@Getter
+public class IllegalTrackTypeException extends RuntimeException {
 
-  @NonNull
-  private final String keyword;
-  private final String value;
+  private final String expectedType;
+  private final String actualType;
 
-  @Override
-  public String toSheetLine() {
-    StringBuilder sb = new StringBuilder(keyword);
-    if (value != null) {
-      sb.append(' ').append(quote(value));
-    }
-    return sb.toString();
-  }
-
-  @Override
-  public String toString() {
-    return toSheetLine();
+  public IllegalTrackTypeException(String expectedType, String actualType) {
+    super("Track type " + actualType + " is not " + expectedType);
+    this.expectedType = expectedType;
+    this.actualType = actualType;
   }
 }

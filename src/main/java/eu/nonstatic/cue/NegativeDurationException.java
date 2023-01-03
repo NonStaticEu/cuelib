@@ -10,29 +10,25 @@
 package eu.nonstatic.cue;
 
 import java.time.Duration;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-@AllArgsConstructor
-public class CueHiddenTrack {
+@Getter
+public class NegativeDurationException extends RuntimeException {
 
-  private FileAndTrack fileAndTrack;
-  @Getter
-  private Duration duration; //from index 0 till index 1 on track 1
+  private final TimeCode timeCode1;
+  private final TimeCode timeCode2;
 
-  public FileAndType getFileAndFormat() {
-    return fileAndTrack.ff;
+  public NegativeDurationException(TimeCode timeCode1, TimeCode timeCode2) {
+    this("Difference between this track and other track is negative: " + timeCode1 + " > " + timeCode2, timeCode1, timeCode2);
   }
 
-  public CueTrack getTrack() {
-    return fileAndTrack.track;
+  public NegativeDurationException(TimeCode timeCode, Duration fileDuration) {
+    this("Difference between this track and file duration is negative: " + timeCode + " > " + fileDuration, timeCode, new TimeCode(fileDuration));
   }
 
-  public CueIndex getPreGapIndex() {
-    return getTrack().getPreGapIndex();
-  }
-
-  public CueIndex getStartIndex() {
-    return getTrack().getStartIndex();
+  private NegativeDurationException(String message, TimeCode timeCode1, TimeCode timeCode2) {
+    super(message);
+    this.timeCode1 = timeCode1;
+    this.timeCode2 = timeCode2;
   }
 }

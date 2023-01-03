@@ -9,37 +9,16 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
-
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
-
 /**
- * For non-standard lines (eg ARTIST or REM-less GENRE)
+ * Mostly copied from https://www.gnu.org/software/ccd2cue/manual/html_node/FILE-_0028CUE-Command_0029.html#FILE-_0028CUE-Command_0029
  */
-@Getter @Setter
-@AllArgsConstructor
-@EqualsAndHashCode
-public class CueOther implements CueEntity {
+public final class FileType {
+  public static final String BINARY = "BINARY"; // raw little endian
+  public static final String MOTOROLA = "MOTROLA"; // raw big endian
+  public static final String AIFF = "AIFF";
+  public static final String WAVE = "WAVE";
+  public static final String MP3 = "MP3";
+  public static final String FLAC = "FLAC"; // other code I read doesn't list it, but I don't see why not
 
-  @NonNull
-  private final String keyword;
-  private final String value;
-
-  @Override
-  public String toSheetLine() {
-    StringBuilder sb = new StringBuilder(keyword);
-    if (value != null) {
-      sb.append(' ').append(quote(value));
-    }
-    return sb.toString();
-  }
-
-  @Override
-  public String toString() {
-    return toSheetLine();
-  }
+  private FileType() {}
 }
