@@ -25,6 +25,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
   public static final int FRAMES_PER_SECOND = 75;
   public static final int MILLIS_PER_SECOND = 1000;
+  private static final int HUNDRED = 100;
   public static final int SECONDS_PER_MINUTE = 60;
   public static final int MAX_CDR_MINUTES = 100; // yes I know about the red book, but there's this too: https://www.amazon.com/dp/B000R4LZ3A
   public static final Comparator<TimeCode> COMPARATOR = Comparator.comparing(TimeCode::toFrameCount);
@@ -60,8 +61,9 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
   }
 
   public static void validate(int minutes, int seconds, int frames) {
-    if (minutes < 0 || minutes >= MAX_CDR_MINUTES) {
-      throw new IllegalArgumentException("minutes must be in the [0-99] range");
+    // Not controlling upper bound, you can make a cue longer than a CDR length without burning it.
+    if (minutes < 0) {
+      throw new IllegalArgumentException("minutes must be in the [0-∞] range");
     }
 
     if (seconds < 0 || seconds >= SECONDS_PER_MINUTE) {
@@ -117,12 +119,8 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
     int seconds = parseInt(parts[1]);
     int frames = parseInt(parts[2]);
 
-    if(lenient && frames == FRAMES_PER_SECOND) {
-      frames = 0;
-      if(++seconds >= SECONDS_PER_MINUTE) {
-        seconds = 0;
-        ++minutes;
-      }
+    if(lenient && frames >= FRAMES_PER_SECOND) { // seems someone used hundredths of a second instead of frames!
+      frames = (frames * FRAMES_PER_SECOND + FRAMES_PER_SECOND-1) / HUNDRED;
     }
     return new TimeCode(minutes, seconds, frames);
   }

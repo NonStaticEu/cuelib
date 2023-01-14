@@ -9,6 +9,7 @@
  */
 package eu.nonstatic.cue;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -52,7 +53,7 @@ class TimeCodeTest {
   @Test
   void should_not_build() {
     assertThrows(IllegalArgumentException.class, () -> new TimeCode(-1, 0, 0));
-    assertThrows(IllegalArgumentException.class, () -> new TimeCode(100, 0, 0));
+    assertDoesNotThrow(() -> new TimeCode(100, 0, 0));
 
     assertThrows(IllegalArgumentException.class, () -> new TimeCode(0, -1, 0));
     assertThrows(IllegalArgumentException.class, () -> new TimeCode(0, 60, 0));
@@ -67,6 +68,9 @@ class TimeCodeTest {
     assertThrows(IllegalArgumentException.class, () -> TimeCode.parse("10:20:75"));
 
     assertEquals("10:20:30", TimeCode.parse("10:20:30", true).toString());
+
+    // more than 99 minutes is allowed. And they're laid out on minutes only; 1:43:20:30 won't be accepted by players.
+    assertEquals("103:20:30", TimeCode.parse("103:20:30", true).toString());
   }
 
   @Test
@@ -77,12 +81,8 @@ class TimeCodeTest {
 
   @Test
   void should_parse_lenient() {
-
-    TimeCode timeCode1 = TimeCode.parse("10:20:75", true);
-    assertEquals("10:21:00", timeCode1.toString());
-
-    TimeCode timeCode2 = TimeCode.parse("10:59:75", true);
-    assertEquals("11:00:00", timeCode2.toString());
+    TimeCode timeCode = TimeCode.parse("10:20:75", true);
+    assertEquals("10:20:56", timeCode.toString());
   }
 
   @Test
