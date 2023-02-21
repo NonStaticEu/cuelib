@@ -10,11 +10,11 @@
 package eu.nonstatic.cue;
 
 class FileAndTrack {
-    final FileAndType ff;
+    final FileReference fileReference;
     final CueTrack track;
 
-    public FileAndTrack(FileAndType ff, CueTrack track) {
-      this.ff = ff;
+    public FileAndTrack(FileReference fileReference, CueTrack track) {
+      this.fileReference = fileReference;
       this.track = track;
     }
   }

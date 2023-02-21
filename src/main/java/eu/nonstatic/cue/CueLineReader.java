@@ -25,7 +25,6 @@ public class CueLineReader implements Closeable {
 
   private final LineNumberReader reader;
 
-
   public CueLineReader(InputStream is, Charset charset) throws IOException {
     if (!is.markSupported()) {
       is = new BufferedInputStream(is);

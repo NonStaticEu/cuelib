@@ -49,7 +49,7 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
     if (number != null) {
       setNumberOnce(number);
     }
-    this.timeCode = Objects.requireNonNull(timeCode, "Index timecode must be provided");
+    setTimeCode(timeCode);
   }
 
   public CueIndex deepCopy() {
@@ -132,8 +132,8 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
     return timeCode.toMillis();
   }
 
-  public void setTimeMillis(long millis) {
-    timeCode = new TimeCode(millis);
+  public void setTimeMillis(long millis, TimeCodeRounding rounding) {
+    timeCode = new TimeCode(millis, rounding);
   }
 
   public String toTimeCode() {
@@ -141,7 +141,7 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
   }
 
   public void setTimeCode(TimeCode timeCode) {
-    this.timeCode = timeCode;
+    this.timeCode = Objects.requireNonNull(timeCode, "Index timecode must be provided");
   }
 
   public void setTimeCode(String timeCode) {
@@ -161,12 +161,12 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
   }
 
   @Override
-  public String toSheetLine() {
+  public String toSheetLine(CueSheetOptions options) {
     return String.format("%s %02d %s", KEYWORD, number, timeCode.toString());
   }
 
   @Override
   public String toString() {
-    return toSheetLine();
+    return toSheetLine(null);
   }
 }

@@ -50,8 +50,8 @@ public final class CueTools {
     return ext;
   }
 
-  public static void validateTrackRange(String name, int trackNumber, int trackCount) {
-    CueTools.validateRange(name, trackNumber, CueTrack.TRACK_ONE, trackCount);
+  public static void validateTrackRange(String name, int trackNumber, int firstTrackNumber, int trackCount) {
+    CueTools.validateRange(name, trackNumber, firstTrackNumber, firstTrackNumber+trackCount-1);
   }
 
   public static void validateIndexRange(String name, int indexNumber, int indexCount) {

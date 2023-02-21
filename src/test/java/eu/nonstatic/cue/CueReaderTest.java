@@ -9,6 +9,8 @@
  */
 package eu.nonstatic.cue;
 
+import static eu.nonstatic.audio.AudioTestBase.MP3_NAME;
+import static eu.nonstatic.audio.AudioTestBase.WAVE_NAME;
 import static eu.nonstatic.cue.CueFlag.DIGITAL_COPY_PERMITTED;
 import static eu.nonstatic.cue.CueFlag.FOUR_CHANNEL_AUDIO;
 import static eu.nonstatic.cue.CueFlag.PRE_EMPHASIS_ENABLED;
@@ -20,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.nonstatic.audio.AudioTestBase;
+import eu.nonstatic.cue.FileType.Audio;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +42,8 @@ import org.junit.jupiter.api.Test;
 class CueReaderTest extends CueTestBase {
 
   static final String TMP_DIR = System.getProperty("java.io.tmpdir");
+  public static final String ASCII_BE_BOP_A_LULA = "Be Bop a Lula";
+  public static final String UNICODE_CHA_CHA_CHA = "cha cha cha àâéếùï すみませんでした"; //this is UTF-8
 
   @Test
   void should_tell_cue_file() throws IOException {
@@ -57,21 +63,21 @@ class CueReaderTest extends CueTestBase {
   }
 
   @Test
-  void should_detect_ascii_but_not() throws IOException {
-    checkCharset("Be Bop a Lula", StandardCharsets.ISO_8859_1, StandardCharsets.US_ASCII); // ICU can't make the difference
+  void should_detect_ascii_but_does_not() throws IOException {
+    checkCharset(ASCII_BE_BOP_A_LULA, StandardCharsets.US_ASCII, StandardCharsets.ISO_8859_1); // ICU can't make the difference
   }
 
   @Test
   void should_detect_iso_8859_1() throws IOException {
-    checkCharset("cha cha cha àâéếùï すみませんでした", StandardCharsets.ISO_8859_1, StandardCharsets.ISO_8859_1);
+    checkCharset(UNICODE_CHA_CHA_CHA, StandardCharsets.ISO_8859_1, StandardCharsets.ISO_8859_1);
   }
 
   @Test
   void should_detect_utf8() throws IOException {
-    checkCharset("cha cha cha àâéếùï すみませんでした", StandardCharsets.UTF_8, StandardCharsets.UTF_8);
+    checkCharset(UNICODE_CHA_CHA_CHA, StandardCharsets.UTF_8, StandardCharsets.UTF_8);
   }
 
-  static void checkCharset(String line, Charset expectedCharset, Charset fileCharset) throws IOException {
+  static void checkCharset(String line, Charset fileCharset, Charset expectedCharset) throws IOException {
     File tempFile = createFileWithCharset(line, fileCharset);
 
     CueContext context = new CueSheetReader().detectEncoding(tempFile);
@@ -83,17 +89,20 @@ class CueReaderTest extends CueTestBase {
     tempFile.delete();
   }
 
+  /**
+   * @return file because most methods taking File cascade to Path, so it's better for coverage
+   */
   private static File createFileWithCharset(String line, Charset fileCharset) throws IOException {
-    File tempFile = File.createTempFile("test", null);
-    try (PrintStream ps = new PrintStream(Files.newOutputStream(tempFile.toPath(), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE), true, fileCharset)) {
+    Path tempFile = Files.createTempFile("test", null);
+    try (PrintStream ps = new PrintStream(Files.newOutputStream(tempFile, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE), true, fileCharset)) {
       ps.println(line);
     }
-    return tempFile;
+    return tempFile.toFile();
   }
 
   @Test
   void should_detect_utf8_stream() throws IOException {
-    File tempFile = createFileWithCharset("cha cha cha àâéếùï すみませんでした", StandardCharsets.UTF_8);
+    File tempFile = createFileWithCharset(UNICODE_CHA_CHA_CHA, StandardCharsets.UTF_8);
     try(InputStream is = Files.newInputStream(tempFile.toPath())) {
       assertEquals(StandardCharsets.UTF_8, new CueSheetReader().detectEncoding(is));
       tempFile.delete();
@@ -103,7 +112,7 @@ class CueReaderTest extends CueTestBase {
   @Test
   void should_read_cuesheet_from_url() throws IOException {
     CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, StandardCharsets.UTF_8);
-    checkReadCueSheet(disc, myTestUrl.toExternalForm());
+    checkReadCueSheet(disc, myTestUrl.toExternalForm(), "", false);
     assertFalse(disc.isRenumberingNecessary());
 
 
@@ -111,13 +120,14 @@ class CueReaderTest extends CueTestBase {
     assertTrue(disc.isRenumberingNecessary());
   }
 
-  private static void checkReadCueSheet(CueDisc disc, String expectedCuePath) {
+  private static void checkReadCueSheet(CueDisc disc, String expectedCuePath, String expectedFilesDir, boolean expectedSizesDurationsSet) {
     checkReadDisc(disc, expectedCuePath);
 
     List<CueFile> files = disc.getFiles();
     CueFile file0 = files.get(0);
-    assertEquals("some file 1.mp3", file0.getFile());
-    assertEquals("MP3", file0.getFormat());
+    assertEquals(joinPath(expectedFilesDir, "some file 1.mp3"), file0.getFile());
+    assertEquals(Audio.MP3, file0.getType());
+    assertEquals(expectedSizesDurationsSet, file0.isSizeAndDurationSet());
 
     assertEquals(4, file0.getTrackCount());
     List<CueTrack> file0Tracks = file0.getTracks();
@@ -127,8 +137,9 @@ class CueReaderTest extends CueTestBase {
     checkReadTrack04(file0Tracks.get(3));
 
     CueFile file1 = files.get(1);
-    assertEquals("some file 2.WAV", file1.getFile());
-    assertEquals("WAVE", file1.getFormat());
+    assertEquals(joinPath(expectedFilesDir, "some file 2.WAV"), file1.getFile());
+    assertEquals(Audio.WAVE, file1.getType());
+    assertEquals(expectedSizesDurationsSet, file1.isSizeAndDurationSet());
     assertEquals(5, file1.getTrackCount());
     List<CueTrack> file1Tracks = file1.getTracks();
 
@@ -139,8 +150,9 @@ class CueReaderTest extends CueTestBase {
     checkReadTrack09(file1Tracks.get(4));
 
     CueFile file2 = files.get(2);
-    assertEquals("some file 1.mp3", file2.getFile());
-    assertEquals("MP3", file2.getFormat());
+    assertEquals(joinPath(expectedFilesDir, "some file 1.mp3"), file2.getFile());
+    assertEquals(Audio.MP3, file2.getType());
+    assertEquals(expectedSizesDurationsSet, file2.isSizeAndDurationSet());
 
     assertEquals(4, file2.getTrackCount());
     List<CueTrack> file2Tracks = file2.getTracks();
@@ -149,6 +161,10 @@ class CueReaderTest extends CueTestBase {
     checkReadTrack11(file2Tracks.get(1));
     checkReadTrack12(file2Tracks.get(2));
     checkReadTrack13(file2Tracks.get(3));
+  }
+
+  private static String joinPath(String dir, String file) {
+    return dir != null ? Paths.get(dir).resolve(file).toString() : file;
   }
 
   private static void checkReadDisc(CueDisc disc, String expectedCuePath) {
@@ -243,8 +259,11 @@ class CueReaderTest extends CueTestBase {
     assertNull(track05.getIsrc());
     assertEquals(0, track05.getFlags().size());
     assertEquals(0, track05.getRemarks().size());
-    assertEquals(1, track05.getIndexCount());
-    CueIndex track05Index1 = track05.getIndexes().get(0);
+    assertEquals(2, track05.getIndexCount());
+    CueIndex track05Index0 = track05.getIndexes().get(0);
+    assertEquals(0, track05Index0.getNumber());
+    assertEquals("00:00:00", track05Index0.toTimeCode());
+    CueIndex track05Index1 = track05.getIndexes().get(1);
     assertEquals(1, track05Index1.getNumber());
     assertEquals("14:44:69", track05Index1.toTimeCode());
   }
@@ -268,8 +287,8 @@ class CueReaderTest extends CueTestBase {
     assertEquals(0, track07.getFlags().size());
     assertEquals(0, track07.getRemarks().size());
     assertEquals(1, track07.getIndexCount());
-    assertEquals(new TimeCode(0, 0, 4), track07.getPregap());
-    assertEquals(new TimeCode(0, 1, 2), track07.getPostgap());
+    assertEquals(new TimeCode(0, 0, 4), track07.getPreGap());
+    assertEquals(new TimeCode(0, 1, 2), track07.getPostGap());
     CueIndex track07Index1 = track07.getIndexes().get(0);
     assertEquals(1, track07Index1.getNumber());
     assertEquals("22:31:60", track07Index1.toTimeCode());
@@ -308,8 +327,11 @@ class CueReaderTest extends CueTestBase {
     assertNull(track10.getIsrc());
     assertEquals(Set.of(SERIAL_COPY_MANAGEMENT_SYSTEM, PRE_EMPHASIS_ENABLED), track10.getFlags());
     assertEquals(0, track10.getRemarks().size());
-    assertEquals(1, track10.getIndexCount());
-    CueIndex track10Index1 = track10.getIndexes().get(0);
+    assertEquals(2, track10.getIndexCount());
+    CueIndex track10Index0 = track10.getIndexes().get(0);
+    assertEquals(0, track10Index0.getNumber());
+    assertEquals("00:00:00", track10Index0.toTimeCode());
+    CueIndex track10Index1 = track10.getIndexes().get(1);
     assertEquals(1, track10Index1.getNumber());
     assertEquals("34:46:14", track10Index1.toTimeCode());
   }
@@ -349,18 +371,24 @@ class CueReaderTest extends CueTestBase {
 
   @Test
   void should_read_cuesheet_from_file() throws IOException {
-    File tempFile = File.createTempFile("test", ".cue");
+    Path tempDir = Files.createTempDirectory("should_read_cuesheet_from_file");
+    Path tempFile = Files.createTempFile(tempDir, "test", ".cue");
     Charset charset = StandardCharsets.UTF_8;
     List<String> lines = readLines(myTestUrl, charset);
-    writeLines(tempFile.toPath(), lines, charset);
+    writeLines(tempFile, lines, charset);
 
-    CueDisc disc1 = new CueSheetReader().readCueSheet(tempFile);
-    checkReadCueSheet(disc1, tempFile.getAbsolutePath());
+    copyFileContents(AudioTestBase.class.getResource(MP3_NAME), tempDir, "some file 1.mp3");
+    copyFileContents(AudioTestBase.class.getResource(WAVE_NAME), tempDir, "some file 2.WAV");
 
-    CueDisc disc2 = CueSheetReader.readCueSheet(tempFile, charset);
-    checkReadCueSheet(disc2, tempFile.getAbsolutePath());
+    try {
+      CueDisc disc1 = new CueSheetReader().readCueSheet(tempFile.toFile());
+      checkReadCueSheet(disc1, tempFile.toString(), tempDir.toString(), true);
 
-    tempFile.delete();
+      CueDisc disc2 = CueSheetReader.readCueSheet(tempFile.toFile(), charset);
+      checkReadCueSheet(disc2, tempFile.toString(), tempDir.toString(), true);
+    } finally {
+      deleteRecursive(tempDir);
+    }
   }
 
   @Test
@@ -379,18 +407,18 @@ class CueReaderTest extends CueTestBase {
 
     List<String> lines = readLines(myTestUrl, StandardCharsets.UTF_8);
     CueDisc disc1 = CueSheetReader.readCueSheet(lines, context);
-    checkReadCueSheet(disc1, expectedCuePath);
+    checkReadCueSheet(disc1, expectedCuePath, "", false);
 
     CueDisc disc2 = CueSheetReader.readCueSheet(lines.toArray(String[]::new), context);
-    checkReadCueSheet(disc2, expectedCuePath);
+    checkReadCueSheet(disc2, expectedCuePath, "", false);
   }
 
   @Test
   void should_read_cuesheet_from_reader() throws IOException {
     CueContext context = new CueContext(myTestUrl.toExternalForm(), StandardCharsets.UTF_8);
-    try(InputStreamReader isr = new InputStreamReader(myTestUrl.openStream())) {
+    try(InputStreamReader isr = new InputStreamReader(myTestUrl.openStream(), context.getCharset())) {
       CueDisc disc = CueSheetReader.readCueSheet(isr, context);
-      checkReadCueSheet(disc, myTestUrl.toExternalForm());
+      checkReadCueSheet(disc, myTestUrl.toExternalForm(), "", false);
     }
   }
 }

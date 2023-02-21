@@ -9,22 +9,17 @@
  */
 package eu.nonstatic.cue;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.*;
+import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * https://en.wikipedia.org/wiki/Cue_sheet_(computing)
@@ -40,7 +35,22 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
   private static final Pattern UPC_EAN_PATTERN = Pattern.compile("\\d{12,13}");
+
+  // https://en.wikipedia.org/wiki/CD-ROM#Capacity
+  // https://en.wikipedia.org/wiki/Mini_CD
+  public static final Duration DURATION_8_CM = Duration.ofMinutes(21); // same density as 74 min CD
+  public static final Duration DURATION_63_MIN = Duration.ofMinutes(63);
+  public static final Duration DURATION_74_MIN = Duration.ofMinutes(74);
+  public static final Duration DURATION_80_MIN = Duration.ofMinutes(80);
+  public static final Duration DURATION_90_MIN = Duration.ofMinutes(90);
+  public static final Duration DURATION_99_MIN = Duration.ofMinutes(99);
+
+  protected static final Duration DURATION_SEEK_WINDOW = Duration.ofSeconds(2); // 150 frames
+  public static final Duration DURATION_LEAD_IN  = DURATION_SEEK_WINDOW; // Durations above include this
+  public static final Duration DURATION_LEAD_OUT = DURATION_SEEK_WINDOW; // Durations above don't include this
+
   private static final String RANGE_MESSAGE_TRACK_NUMBER = "Track number";
+
 
   private final String path;
   private Charset charset;
@@ -50,6 +60,10 @@ public class CueDisc implements CueIterable<CueFile> {
   private String songwriter;
   private String catalog; // MCN/UPC
   private String cdTextFile;
+  /**
+   * First track number, may be > 1
+   */
+  private int firstTrackNumber;
 
   private final List<CueFile> files;
   private final List<CueRemark> remarks;
@@ -69,6 +83,7 @@ public class CueDisc implements CueIterable<CueFile> {
     this.files = new ArrayList<>(2);
     this.remarks = new ArrayList<>();
     this.others = new ArrayList<>();
+    this.firstTrackNumber = CueTrack.TRACK_ONE;
   }
 
   public CueDisc(String path, Charset charset, CueFile... files) {
@@ -110,6 +125,11 @@ public class CueDisc implements CueIterable<CueFile> {
     this.catalog = catalog;
   }
 
+  public void setFirstTrackNumber(int firstTrackNumber) {
+    CueTools.validateTrackRange("firstTrackNumber", firstTrackNumber, CueTrack.TRACK_ONE, CueTrack.TRACK_MAX);
+    this.firstTrackNumber = firstTrackNumber;
+  }
+
   @Override
   public CueIterator<CueFile> iterator() {
     return new CueIterator<>(files);
@@ -146,11 +166,15 @@ public class CueDisc implements CueIterable<CueFile> {
     // no dupe checking, one may use several times the same file and several times the same tracks
     CueTools.validateRange("File index", idx, 0, getFileCount());
 
-    CueFile fileCopy = new CueFile(file.getFileAndType());
+    CueFile fileCopy = new CueFile(file.fileReference);
     for (CueTrack track : file) {
       fileCopy.addTrack(track);
     }
     addFileUnsafe(idx, fileCopy);
+
+    if(file.isSizeAndDurationSet()) {
+      fileCopy.setSizeAndDuration(new SizeAndDuration(file.getSizeDuration()));
+    }
 
     return fileCopy;
   }
@@ -181,21 +205,21 @@ public class CueDisc implements CueIterable<CueFile> {
 
 
   public boolean hasHiddenTrack() {
-    CueTrack trackOne = getFirstTrack();
-    return trackOne != null && trackOne.hasPreGap();
+    CueTrack firstTrack = getFirstTrack();
+    return firstTrack != null && firstTrack.hasPreGapIndex();
   }
 
   public CueHiddenTrack getHiddenTrack() throws IndexNotFoundException {
     if(hasHiddenTrack()) {
-      FileAndTrack fileAndTrack = chunk(CueTrack.TRACK_ONE);
+      FileAndTrack fileAndTrack = chunk(firstTrackNumber); // the concept of a hidden track when firstTrackNumber > 1 beats me but it seems possible
 
-      CueTrack trackOne = fileAndTrack.track;
-      CueIndex trackOneStartIndex = trackOne.getStartIndex();
-      if(trackOneStartIndex == null) {
-        throw new IndexNotFoundException("No index " + CueIndex.INDEX_TRACK_START + " on track " + CueTrack.TRACK_ONE + " to calculate hidden track duration", CueIndex.INDEX_TRACK_START);
+      CueTrack firstTrack = fileAndTrack.track;
+      CueIndex firstTrackStartIndex = firstTrack.getStartIndex();
+      if(firstTrackStartIndex == null) {
+        throw new IndexNotFoundException("No index " + CueIndex.INDEX_TRACK_START + " on track " + firstTrackNumber + " to calculate hidden track duration", CueIndex.INDEX_TRACK_START);
       }
-      CueIndex preGapIndex = trackOne.getPreGapIndex();
-      Duration duration = preGapIndex.until(trackOneStartIndex);
+      CueIndex preGapIndex = firstTrack.getPreGapIndex();
+      Duration duration = preGapIndex.until(firstTrackStartIndex);
       return new CueHiddenTrack(fileAndTrack, duration);
     } else {
       return null;
@@ -223,16 +247,17 @@ public class CueDisc implements CueIterable<CueFile> {
    * @return
    */
   public CueTrack getTrack(int trackNumber) {
-    CueTools.validateTrackRange(RANGE_MESSAGE_TRACK_NUMBER, trackNumber, getTrackCount());
+    CueTools.validateTrackRange(RANGE_MESSAGE_TRACK_NUMBER, trackNumber, firstTrackNumber, getTrackCount());
 
     return Optional.ofNullable(getTrackUnsafe(trackNumber))
-        .orElseThrow(() -> new IllegalArgumentException(Integer.toString(trackNumber)));
+        .orElseThrow(() -> new TrackNotFoundException(trackNumber));
   }
 
   /**
-   * @return track 1
+   * @return Convenience method to get track 1. Caution, the first track of a CD may be > 1
    * @throws IllegalArgumentException if there's no track one.
    */
+  //FIXLE renalme and rework: should be getTrack(firstTrackNumber), even if we consent to keeping a methos with this name here
   public CueTrack getTrackNumberOne() {
     return getTrack(CueTrack.TRACK_ONE);
   }
@@ -241,11 +266,11 @@ public class CueDisc implements CueIterable<CueFile> {
    * @return first track of the disc. That is, track 1 if it exists, else null.
    */
   public CueTrack getFirstTrack() {
-    return getTrackUnsafe(CueTrack.TRACK_ONE);
+    return getTrackUnsafe(firstTrackNumber);
   }
 
   private CueTrack getTrackUnsafe(int trackNumber) {
-    int number = CueTrack.TRACK_ONE;
+    int number = firstTrackNumber;
     for (CueFile file : files) {
       for (CueTrack track : file) {
         track.number = number; // renumbering on the fly
@@ -265,10 +290,10 @@ public class CueDisc implements CueIterable<CueFile> {
   }
 
   public CueTrack removeTrack(int trackNumber) {
-    CueTools.validateTrackRange(RANGE_MESSAGE_TRACK_NUMBER, trackNumber, getTrackCount());
+    CueTools.validateTrackRange(RANGE_MESSAGE_TRACK_NUMBER, trackNumber, firstTrackNumber, getTrackCount());
 
     CueTrack result = null;
-    int fileStart = CueTrack.TRACK_ONE;
+    int fileStart = firstTrackNumber;
     for (CueFile file : files) {
       int trackCount = file.getTrackCount();
       if (fileStart + file.getTrackCount() > trackNumber) {
@@ -290,8 +315,8 @@ public class CueDisc implements CueIterable<CueFile> {
     Map<Integer, FileAndTrack> fileAndTracks = split();
     int trackCount = fileAndTracks.size();
 
-    CueTools.validateTrackRange("Moving number", movingNumber, trackCount);
-    CueTools.validateTrackRange("Before number", beforeNumber, trackCount);
+    CueTools.validateTrackRange("Moving number", movingNumber, firstTrackNumber, trackCount);
+    CueTools.validateTrackRange("Before number", beforeNumber, firstTrackNumber, trackCount);
 
     FileAndTrack movingFileAndTrack = fileAndTracks.get(movingNumber);
     // What if we don't want to move?
@@ -320,8 +345,8 @@ public class CueDisc implements CueIterable<CueFile> {
     Map<Integer, FileAndTrack> fileAndTracks = split();
     int trackCount = fileAndTracks.size();
 
-    CueTools.validateTrackRange("Moving number", movingNumber, trackCount);
-    CueTools.validateTrackRange("After number", afterNumber, trackCount);
+    CueTools.validateTrackRange("Moving number", movingNumber, firstTrackNumber, trackCount);
+    CueTools.validateTrackRange("After number", afterNumber, firstTrackNumber, trackCount);
 
     FileAndTrack movingFileAndTrack = fileAndTracks.get(movingNumber);
     // What if we don't want to move?
@@ -343,21 +368,21 @@ public class CueDisc implements CueIterable<CueFile> {
   }
 
 
-  protected FileAndTrack chunk(int trackNumber) {
-    CueTools.validateTrackRange(RANGE_MESSAGE_TRACK_NUMBER, trackNumber, getTrackCount());
+  protected FileAndTrack chunk(int trackNumber) throws TrackNotFoundException {
+    CueTools.validateTrackRange(RANGE_MESSAGE_TRACK_NUMBER, trackNumber, firstTrackNumber, getTrackCount());
 
-    int number = CueTrack.TRACK_ONE;
+    int number = firstTrackNumber;
     for (CueFile file : files) {
-      FileAndType ff = file.getFileAndType();
+      FileReference ft = file.fileReference;
       for (CueTrack track : file) {
         if (number == trackNumber) {
-          return new FileAndTrack(ff, track);
+          return new FileAndTrack(ft, track);
         }
         number++;
       }
     }
 
-    throw new IllegalArgumentException(Integer.toString(trackNumber)); // unreachable
+    throw new TrackNotFoundException(trackNumber); // unreachable
   }
 
   /**
@@ -379,7 +404,7 @@ public class CueDisc implements CueIterable<CueFile> {
 
   public List<CueTrack> renumberTracks() {
     var result = new ArrayList<CueTrack>();
-    int number = CueTrack.TRACK_ONE;
+    int number = firstTrackNumber;
     for (CueFile file : files) {
       for (CueTrack track : file) {
         track.number = number++;
@@ -395,7 +420,7 @@ public class CueDisc implements CueIterable<CueFile> {
    */
   private Map<Integer, FileAndTrack> split() {
     var fileAndTracks = new LinkedHashMap<Integer, FileAndTrack>(); // keeping order in case we just want the values
-    int number = CueTrack.TRACK_ONE;
+    int number = firstTrackNumber;
     for (CueFile file : files) {
       for (FileAndTrack fileAndTrack : file.split()) {
         fileAndTrack.track.number = number; // to be homogenous with the map's keys
@@ -410,11 +435,11 @@ public class CueDisc implements CueIterable<CueFile> {
     List<CueFile> newFiles = new ArrayList<>();
 
     CueFile currentFile = null;
-    FileAndType currentFf = null;
+    FileReference currentFf = null;
 
     for (FileAndTrack fileAndTrack : ftList) {
-      if(!fileAndTrack.ff.equals(currentFf)) {
-        currentFf = fileAndTrack.ff;
+      if(!fileAndTrack.fileReference.equals(currentFf)) {
+        currentFf = fileAndTrack.fileReference;
         currentFile = new CueFile(currentFf);
         newFiles.add(currentFile);
       }
@@ -454,28 +479,105 @@ public class CueDisc implements CueIterable<CueFile> {
    * @param options
    * @return
    */
-  public List<String> checkConsistency(CueSheetOptions options) {
+  public CueIssues checkConsistency(CueSheetOptions options) {
     repackFiles(); // optimization + renumbering, else some track-related error messages might be misleading
 
-    var issues = new ArrayList<String>();
+    var issues = new CueIssues();
 
     try {
-      CueTools.validateRange("Tracks count", getTracks().size(), options.isNoTrackAllowed() ? 0 : 1, CueTrack.TRACK_MAX);
+      int trackCount = getTrackCount();
+      int minTrackCount = options.isNoTrackAllowed() ? 0 : 1;
+      CueTools.validateRange("Tracks count", trackCount, minTrackCount, CueTrack.TRACK_MAX);
+      CueTools.validateRange("Track max", firstTrackNumber + trackCount - 1, minTrackCount, CueTrack.TRACK_MAX);
     } catch (IllegalArgumentException e) {
-      issues.add(e.getMessage());
+      issues.add(e);
     }
 
     files.forEach(file -> issues.addAll(file.checkConsistency(options.isOrderedTimeCodes())));
 
-    // checking whether there's at most one pregap, on track 1
-    boolean firstSeen = false;
-    for (CueTrack track : getTracks()) {
-      if(!firstSeen) {
-        firstSeen = true;
-      } else if(track.hasPreGap()) {
-        issues.add("Track " + track.number + " has a pregap. Only track " + CueTrack.TRACK_ONE + " may have one");
+    // check min track duration
+    Duration minTrackDuration = options.getMinTrackDuration();
+    if(minTrackDuration != null) {
+      Map<CueTrack, Duration> tracksDurations = getTracksDurations();
+
+      boolean seenFirst = false;
+      for (Map.Entry<CueTrack, Duration> entry : tracksDurations.entrySet()) {
+        // Adding lead-in time on first track. Originally the min track duration is meant to always have a seek window margin of 2 seconds,
+        // even when rewinding to the first index of the first track (which is then 2 seconds minimum). Lead-in is there even if there's a hidden track.
+        Duration trackDuration = entry.getValue();
+        if(!seenFirst) {
+          seenFirst = true;
+          trackDuration = trackDuration.plus(CueDisc.DURATION_LEAD_IN);
+        }
+
+        if (trackDuration.compareTo(minTrackDuration) < 0) {
+          Integer trackNumber = entry.getKey().getNumber();
+          issues.add(String.format("Track %s duration %s is below %s", trackNumber, trackDuration, minTrackDuration));
+        }
       }
     }
+
+    // check disc size
+    Long burningLimit = options.getBurningLimit();
+    if(burningLimit != null) {
+      long sizeOnDisc = getSizeOnDisc();
+      if (sizeOnDisc > burningLimit) {
+        issues.add(new TooMuchDataException(burningLimit, sizeOnDisc));
+      }
+    }
+
     return issues;
+  }
+
+  /**
+   * Computes the tracks durations *without* lead-in/out
+   * @return the track's duration.
+   * if the file is not audio, there's no entries for its tracks, so even though tracks are ordered tey may not be sequential.
+   * if a track's diff with the next one is negative, then the returned value is the diff with the end of the file instead
+   * @throws IllegalTrackTypeException if at least one track is not audio despite being in an audio file
+   * @throws IndexNotFoundException if the needed index(es) for the computations do(es)n't exist
+   * @throws NegativeDurationException if the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
+   */
+  private Map<CueTrack, Duration> getTracksDurations() {
+    var tracksDurations = new LinkedHashMap<CueTrack, Duration>(); // linked to preserve order
+    for (CueFile file : files) {
+      tracksDurations.putAll(file.getTracksDurations());
+    }
+    return tracksDurations;
+  }
+
+  /**
+   * @return bytes on disc including lead-in, excluding lead-out
+   */
+  private long getSizeOnDisc() {
+    // Initial mandatory lead-in as per specification EVEN if there is a cuefile pregap or a hidden track
+    // (the lead in is actually silence with the TOC as subcode)
+    long totalSize = SizeAndDuration.getCompactDiscBytesFor(DURATION_LEAD_IN, TimeCodeRounding.CLOSEST);
+
+    for (CueFile file : files) {
+      Optional<Long> size = Optional.ofNullable(file.fileReference.sizeDuration).map(sd -> sd.size);
+      if(size.isPresent()) {
+        totalSize += size.get();
+      } else {
+        throw new NullPointerException(file.getFile() + ": missing size");
+      }
+
+      // Gaps (index 00 to index 01) are supposed to be stored in the files - they may be silence or not - but there's still those artificial gaps to account for.
+      // You shouldn't have preGap and Index 00 together in a cue sheet, makes no sense. Consistency check makes sure of it.
+      for (CueTrack cueTrack : file) {
+        TimeCode preGap = cueTrack.getPreGap();
+        if(preGap != null) {
+          totalSize += SizeAndDuration.getCompactDiscBytesFor(preGap);
+        }
+        TimeCode postGap = cueTrack.getPostGap();
+        if(postGap != null) {
+          totalSize += SizeAndDuration.getCompactDiscBytesFor(postGap);
+        }
+      }
+    }
+
+    // Not entirely sure we should account for lead-out.
+
+    return totalSize;
   }
 }

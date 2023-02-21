@@ -65,13 +65,12 @@ public class CueSheetReader {
   }
 
   public CueContext detectEncoding(Path file) {
-    String name = file.toString();
     try (InputStream is = Files.newInputStream(file)) {
       Charset charset = detectEncoding(is);
       return new CueContext(file, charset);
     } catch (IOException e) {
       log.debug("Fallback to {} for {}: {}", fallbackCharset, file.toAbsolutePath(), e.getMessage(), e);
-      return new CueContext(name, fallbackCharset);
+      return new CueContext(file, fallbackCharset);
     }
   }
 
@@ -166,45 +165,53 @@ public class CueSheetReader {
     CueLine line;
     while((line = cueLineReader.readLine()) != null) {
       if (!line.isEmpty()) {
-        String keyword = line.getKeyword();
-        if (keyword != null) {
-          String tail = line.getTail();
-
-          switch (keyword) {
-            case TITLE:
-              disc.setTitle(unquote(tail));
-              break;
-            case PERFORMER:
-              disc.setPerformer(unquote(tail));
-              break;
-            case SONGWRITER:
-              disc.setSongwriter(unquote(tail));
-              break;
-            case CATALOG:
-              disc.setCatalog(unquote(tail));
-              break;
-            case CueFile.KEYWORD:
-              FileAndType fileAndType = FileAndType.parse(tail);
-              CueFile file = readFile(fileAndType, cueLineReader, context, previousTrackNum);
-              disc.addFileUnsafe(file);
-              previousTrackNum = file.getLastTrack().number;
-              break;
-            case CDTEXTFILE:
-              disc.setCdTextFile(unquote(tail));
-              break;
-            case CueRemark.KEYWORD:
-              disc.addRemark(readRemark(line));
-              break;
-            default:
-              log.warn("{}#{}: Unknown disc line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
-              disc.addOther(readOther(line));
-          }
-        } else {
-          log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
-        }
+        previousTrackNum = readCueSheetLine(cueLineReader, line, previousTrackNum, disc, context);
       }
     }
     return disc;
+  }
+
+  private static int readCueSheetLine(CueLineReader cueLineReader, CueLine line, int previousTrackNum, CueDisc disc, CueContext context) throws IOException {
+    String keyword = line.getKeyword();
+    if (keyword != null) {
+      String tail = line.getTail();
+
+      switch (keyword) {
+        case TITLE:
+          disc.setTitle(unquote(tail));
+          break;
+        case PERFORMER:
+          disc.setPerformer(unquote(tail));
+          break;
+        case SONGWRITER:
+          disc.setSongwriter(unquote(tail));
+          break;
+        case CATALOG:
+          disc.setCatalog(unquote(tail));
+          break;
+        case CueFile.KEYWORD:
+          FileReference fileReference = FileReference.parse(tail, context);
+          CueFile file = readFile(fileReference, previousTrackNum, cueLineReader, context);
+          disc.addFileUnsafe(file);
+          CueTrack latestTrack = file.getLastTrack();
+          if(latestTrack != null) { // a file without track may be possible on a peculiar cue sheet
+            previousTrackNum = latestTrack.number;
+          }
+          break;
+        case CDTEXTFILE:
+          disc.setCdTextFile(unquote(tail));
+          break;
+        case CueRemark.KEYWORD:
+          disc.addRemark(readRemark(line));
+          break;
+        default:
+          log.warn("{}#{}: Unknown disc line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          disc.addOther(readOther(line));
+      }
+    } else {
+      log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
+    }
+    return previousTrackNum;
   }
 
 
@@ -234,9 +241,9 @@ public class CueSheetReader {
     return new CueOther(line.getKeyword(), unquote(line.getTail()));
   }
 
-  private static CueFile readFile(FileAndType fileAndType, CueLineReader reader, CueContext context, int previousTrackNum) throws IOException {
+  private static CueFile readFile(FileReference fileReference, int previousTrackNum, CueLineReader reader, CueContext context) throws IOException {
     reader.mark(); // to avoid infinite loop on FILE followed by FILE
-    CueFile file = new CueFile(fileAndType);
+    CueFile file = new CueFile(fileReference);
 
     CueLine line;
     while ((line = reader.readLine()) != null) {
@@ -302,10 +309,10 @@ public class CueSheetReader {
               track.setIsrc(unquote(tail));
               break;
             case PREGAP:
-              track.setPregap(TimeCode.parse(tail));
+              track.setPreGap(TimeCode.parse(tail));
               break;
             case POSTGAP:
-              track.setPostgap(TimeCode.parse(tail));
+              track.setPostGap(TimeCode.parse(tail));
               break;
             case FLAGS:
               track.setFlags(readFlags(line));

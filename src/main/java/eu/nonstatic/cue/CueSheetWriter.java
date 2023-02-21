@@ -9,24 +9,19 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.CueTools.quote;
-import static java.util.stream.Collectors.joining;
+import lombok.NonNull;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.Writer;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
-import lombok.NonNull;
+
+import static eu.nonstatic.cue.CueTools.quote;
+import static java.util.stream.Collectors.joining;
 
 public final class CueSheetWriter {
 
@@ -66,52 +61,49 @@ public final class CueSheetWriter {
   }
 
   public static void writeCueSheet(CueDisc cueDisc, PrintWriter pw, CueSheetOptions options) {
-    List<String> issues = cueDisc.checkConsistency(options);
-
+    CueIssues issues = cueDisc.checkConsistency(options);
     if(!issues.isEmpty()) {
-      IllegalStateException ex = new IllegalStateException();
-      issues.forEach(s -> ex.addSuppressed(new IllegalStateException(s)));
-      throw ex;
+      throw issues.toException();
     }
 
-    cueDisc.getRemarks().forEach(remark -> printlnRaw(pw, INDENTATION_ROOT, remark.toSheetLine()));
+    cueDisc.getRemarks().forEach(remark -> printlnRaw(pw, INDENTATION_ROOT, remark.toSheetLine(options)));
 
     printlnQuoted(pw, INDENTATION_ROOT, CueWords.PERFORMER, cueDisc.getPerformer());
     printlnQuoted(pw, INDENTATION_ROOT, CueWords.TITLE, cueDisc.getTitle());
     printlnQuoted(pw, INDENTATION_ROOT, CueWords.SONGWRITER, cueDisc.getSongwriter());
     printlnQuoted(pw, INDENTATION_ROOT, CueWords.CATALOG, cueDisc.getCatalog());
     printlnQuoted(pw, INDENTATION_ROOT, CueWords.CDTEXTFILE, cueDisc.getCdTextFile());
-    cueDisc.getOthers().forEach(other -> printlnRaw(pw, INDENTATION_ROOT, other.toSheetLine()));
+    cueDisc.getOthers().forEach(other -> printlnRaw(pw, INDENTATION_ROOT, other.toSheetLine(options)));
 
-    cueDisc.getFiles().forEach(file -> writeFile(file, pw));
+    cueDisc.getFiles().forEach(file -> writeFile(file, pw, options));
 
     pw.flush();
   }
 
 
-  public static void writeFile(CueFile file, PrintWriter pw) {
+  public static void writeFile(CueFile file, PrintWriter pw, CueSheetOptions options) {
     if(file.getTrackCount() > 0) {
-      printlnRaw(pw, INDENTATION_FILE, file.toSheetLine());
+      printlnRaw(pw, INDENTATION_FILE, file.toSheetLine(options));
 
-      file.getTracks().forEach(track -> writeTrack(track, pw));
+      file.getTracks().forEach(track -> writeTrack(track, pw, options));
     }
   }
 
-  public static void writeTrack(CueTrack track, PrintWriter pw) {
+  public static void writeTrack(CueTrack track, PrintWriter pw, CueSheetOptions options) {
     if(track.getIndexCount() > 0) {
-      printlnRaw(pw, INDENTATION_TRACK, track.toSheetLine());
+      printlnRaw(pw, INDENTATION_TRACK, track.toSheetLine(options));
 
-      track.getRemarks().forEach(remark -> printlnRaw(pw, INDENTATION_TRACK_PROPS, remark.toSheetLine()));
+      track.getRemarks().forEach(remark -> printlnRaw(pw, INDENTATION_TRACK_PROPS, remark.toSheetLine(options)));
       printlnQuoted(pw, INDENTATION_TRACK_PROPS, CueWords.TITLE, track.getTitle());
       printlnQuoted(pw, INDENTATION_TRACK_PROPS, CueWords.PERFORMER, track.getPerformer());
       printlnQuoted(pw, INDENTATION_TRACK_PROPS, CueWords.SONGWRITER, track.getSongwriter());
       printlnQuoted(pw, INDENTATION_TRACK_PROPS, CueWords.ISRC, track.getIsrc());
       writeFlags(track.getFlags(), pw);
-      track.getOthers().forEach(other -> printlnRaw(pw, INDENTATION_TRACK_PROPS, other.toSheetLine()));
-      printlnRaw(pw, INDENTATION_TRACK_PROPS, CueWords.PREGAP, track.getPregap());
-      printlnRaw(pw, INDENTATION_TRACK_PROPS, CueWords.POSTGAP, track.getPostgap());
+      track.getOthers().forEach(other -> printlnRaw(pw, INDENTATION_TRACK_PROPS, other.toSheetLine(options)));
+      printlnRaw(pw, INDENTATION_TRACK_PROPS, CueWords.PREGAP, track.getPreGap());
+      printlnRaw(pw, INDENTATION_TRACK_PROPS, CueWords.POSTGAP, track.getPostGap());
 
-      track.getIndexes().forEach(index -> writeIndex(index, pw));
+      track.getIndexes().forEach(index -> writeIndex(index, pw, options));
     }
   }
 
@@ -126,8 +118,8 @@ public final class CueSheetWriter {
     }
   }
 
-  public static void writeIndex(CueIndex index, PrintWriter pw) {
-    printlnRaw(pw, INDENTATION_INDEX, index.toSheetLine());
+  public static void writeIndex(CueIndex index, PrintWriter pw, CueSheetOptions options) {
+    printlnRaw(pw, INDENTATION_INDEX, index.toSheetLine(options));
   }
 
 

@@ -15,25 +15,28 @@ import lombok.Getter;
 
 @Getter
 public class CueContext {
+  public static final TimeCodeRounding DEFAULT_ROUNDING = TimeCodeRounding.DOWN; //TODO should it become a first class citizen ?
 
-  private String path;
-  private String parent;
-  private String name;
+  private final String path;
+  private final Path parent;
+  private final String name;
 
-  private Charset charset;
+  private final Charset charset;
+  private final TimeCodeRounding rounding;
 
   public CueContext(String name, Charset charset) {
-    this(name, null, name, charset);
+    this(name, null, name, charset, DEFAULT_ROUNDING);
   }
 
   public CueContext(Path cueFile, Charset charset) {
-    this(cueFile.toString(), cueFile.getParent().toString(), cueFile.getFileName().toString(), charset);
+    this(cueFile.toString(), cueFile.getParent(), cueFile.getFileName().toString(), charset, DEFAULT_ROUNDING);
   }
 
-  private CueContext(String path, String parent, String name, Charset charset) {
+  private CueContext(String path, Path parent, String name, Charset charset, TimeCodeRounding rounding) {
     this.path = path;
     this.parent = parent;
     this.name = name;
     this.charset = charset;
+    this.rounding = rounding;
   }
 }

@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 
 @Getter
-public class IndexNotFoundException extends RuntimeException {
+public class IndexNotFoundException extends IndexOutOfBoundsException {
 
   private final int[] indexes;
 

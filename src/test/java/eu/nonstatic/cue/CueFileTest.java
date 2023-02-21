@@ -9,38 +9,76 @@
  */
 package eu.nonstatic.cue;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import eu.nonstatic.audio.AudioTestBase;
 import eu.nonstatic.cue.CueIterable.CueIterator;
+import eu.nonstatic.cue.FileType.Data;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import org.junit.jupiter.api.Test;
+
+import static eu.nonstatic.audio.AudioTestBase.MP3_NAME;
+import static eu.nonstatic.cue.CueTestBase.copyFileContents;
+import static eu.nonstatic.cue.CueTestBase.deleteRecursive;
+import static eu.nonstatic.cue.SizeAndDuration.CD_BYTES_PER_FRAME;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CueFileTest {
 
   @Test
+  void should_construct_cuefile() throws IOException {
+    Path tempDir = Files.createTempDirectory("should_construct_cuefile");
+    Path path = copyFileContents(AudioTestBase.class.getResource(MP3_NAME), tempDir, "file.mp3");
+
+    TimeCode indexTimeCode = TimeCode.TWO_SECONDS;
+    Duration mp3Duration = Duration.ofNanos(11154285714L);
+
+    CueFile cueFile1 = new CueFile(path.toFile(), TimeCodeRounding.DOWN);
+    cueFile1.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(indexTimeCode)));
+    assertTrue(cueFile1.isAudio());
+    assertTrue(cueFile1.isSizeAndDurationSet());
+    assertEquals(new TimeCode(mp3Duration, TimeCodeRounding.DOWN).toFrameCount() * CD_BYTES_PER_FRAME, cueFile1.getSizeDuration().getSize()); // audio size "on CD", rounded DOWN by default
+    assertEquals(mp3Duration, cueFile1.getSizeDuration().getDuration());
+    assertEquals(mp3Duration.minus(indexTimeCode.toDuration()), cueFile1.getTrackDuration(0)); // index here not track number. Duration excludes the time before the first index
+
+
+    CueFile cueFile2 = new CueFile(path.toFile(), Data.BINARY);
+    assertFalse(cueFile2.isAudio());
+    assertTrue(cueFile2.isSizeAndDurationSet());
+    assertEquals(210469L, cueFile2.getSizeDuration().getSize()); // binary size
+    assertNull(cueFile2.getSizeDuration().getDuration());
+
+    cueFile2.addTrack(new CueTrack(TrackType.MODE2_2352, new CueIndex(TimeCode.ZERO_SECOND)));
+    cueFile2.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(TimeCode.ONE_SECOND))); // result below should be the same no matter the track type or indexes, since the file type is binary
+    assertNull(cueFile2.getTrackDuration(0)); // index here not track number
+    assertNull(cueFile2.getTrackDuration(1)); // index here not track number
+
+    // coverage
+    CueFile cueFile3 = new CueFile(path, TimeCodeRounding.DOWN);
+    CueFile cueFile4 = new CueFile(path, Data.MOTOROLA);
+
+    deleteRecursive(tempDir);
+  }
+
+  @Test
   void should_initialize_with_empty_file() throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
-    CueFile file = new CueFile(null, null);
+    CueFile file = new CueFile((String)null, null);
     assertNull(file.getFile());
-    assertNull(file.getFormat());
+    assertNull(file.getType());
 
     assertEquals(0, file.getTrackCount());
     assertEquals(0, file.getTracks().size());
 
     assertNull(file.getFirstTrack());
     assertNull(file.getLastTrack());
-    Duration oneHour = Duration.ofHours(1);
-    assertThrows(IllegalArgumentException.class, () -> file.getTrackDuration(0, oneHour));
-    assertEquals(0, file.getTracksDurations(oneHour).size());
+    assertThrows(TrackNotFoundException.class, () -> file.getTrackDuration(0));
+    assertEquals(0, file.getTracksDurations().size());
 
     assertEquals(0, file.getIndexCount());
     assertEquals(0, file.getIndexes().size());
@@ -48,7 +86,7 @@ class CueFileTest {
 
   @Test
   void should_get_tracks() {
-    CueFile file = new CueFile("file", "format");
+    CueFile file = new CueFile("file", FileType.Audio.WAVE);
     CueTrack track1 = file.addTrack(new CueTrack(TrackType.AUDIO, "performer1", "title1"));
     CueTrack track2 = file.addTrack(new CueTrack(TrackType.AUDIO, "performer2", "title2"));
 
@@ -64,7 +102,7 @@ class CueFileTest {
     CueTrack track1 = new CueTrack(TrackType.AUDIO, "performer1", "title1");
     CueTrack track2 = new CueTrack(TrackType.AUDIO, "performer2", "title2");
     List<CueTrack> tracks = List.of(track1, track2);
-    CueFile file = new CueFile("file", "format", tracks);
+    CueFile file = new CueFile("file", FileType.Audio.WAVE, tracks);
 
     CueFile fileCopy = file.deepCopy();
 
@@ -87,7 +125,7 @@ class CueFileTest {
 
   @Test
   void should_remove_track() {
-    CueFile file = new CueFile("file", "format");
+    CueFile file = new CueFile("file", FileType.Audio.WAVE);
     CueTrack track1 = file.addTrack(new CueTrack(TrackType.AUDIO, "performer1", "title1"));
     CueTrack track2 = file.addTrack(new CueTrack(TrackType.AUDIO, "performer2", "title2"));
 
@@ -104,7 +142,7 @@ class CueFileTest {
 
   @Test
   void should_clear_tracks() {
-    CueFile file = new CueFile("file", "format", List.of(
+    CueFile file = new CueFile("file", FileType.Audio.WAVE, List.of(
       new CueTrack(TrackType.AUDIO, "performer1", "title1"),
       new CueTrack(TrackType.AUDIO, "performer2", "title2")
     ));
@@ -119,7 +157,7 @@ class CueFileTest {
   void should_not_add_twice_the_same_track() {
     CueTrack track1 = new CueTrack(TrackType.AUDIO, "performer1", "title1");
     CueTrack track2 = new CueTrack(TrackType.AUDIO, "performer2", "title2");
-    CueFile file = new CueFile("file", "format", track1, track2);
+    CueFile file = new CueFile("file", FileType.Audio.WAVE, track1, track2);
 
     for (CueTrack track : file) {
       assertThrows(IllegalArgumentException.class, () -> file.addTrack(track));
@@ -128,7 +166,7 @@ class CueFileTest {
 
   @Test
   void should_stream() {
-    CueFile file = new CueFile("file", "format");
+    CueFile file = new CueFile("file", FileType.Audio.WAVE);
     assertEquals(0, file.stream().count());
 
     file.addTrack(new CueTrack(TrackType.AUDIO, "performer1", "title1"));
@@ -138,7 +176,7 @@ class CueFileTest {
 
   @Test
   void should_give_iterator() {
-    CueFile file = new CueFile("file", "format");
+    CueFile file = new CueFile("file", FileType.Audio.WAVE);
     CueIterator<CueTrack> it1 = file.iterator();
     assertFalse(it1.hasNext());
 
@@ -164,26 +202,28 @@ class CueFileTest {
   void should_get_track_duration() throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
     TimeCode timeCode1 = new TimeCode(10, 20, 30);
     TimeCode timeCode2 = new TimeCode(20, 30, 40);
-    CueFile file = new CueFile("file", "format",
+    CueFile file = new CueFile("file", FileType.Audio.WAVE,
       new CueTrack(TrackType.AUDIO, new CueIndex(CueIndex.INDEX_TRACK_START, timeCode1)),
       new CueTrack(TrackType.AUDIO, new CueIndex(CueIndex.INDEX_TRACK_START, timeCode2))
     );
 
-    Duration fileDuration = Duration.ofMinutes(30);
-    assertEquals(Duration.ofMillis(610133L), file.getTrackDuration(0, fileDuration)); // duration is calculated from the frames diff, hence the 0.133s instead of 0.134s calculated from millis.
-    assertEquals(Duration.ofMillis(569466L), file.getTrackDuration(1, fileDuration));
+    file.setSizeAndDuration(new SizeAndDuration(Duration.ofMinutes(30), TimeCodeRounding.DOWN));
+    assertEquals(Duration.ofMillis(610133L), file.getTrackDuration(0)); // duration is calculated from the frames diff, hence the 0.133s instead of 0.134s calculated from millis.
+    assertEquals(Duration.ofMillis(569466L), file.getTrackDuration(1));
   }
 
   @Test
   void should_get_tracks_durations() throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
     TimeCode timeCode1 = new TimeCode(10, 20, 30);
     TimeCode timeCode2 = new TimeCode(20, 30, 40);
-    CueFile file = new CueFile("file", "format");
+    CueFile file = new CueFile("file", FileType.Audio.WAVE);
     CueTrack track1 = file.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(CueIndex.INDEX_TRACK_START, timeCode1)));
     CueTrack track2 = file.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(CueIndex.INDEX_TRACK_START, timeCode2)));
+    track2.setPreGap(TimeCode.TWO_SECONDS);
+    track2.setPostGap(TimeCode.ONE_SECOND);
 
-    Duration fileDuration = Duration.ofMinutes(30);
-    Map<CueTrack, Duration> tracksDurations = file.getTracksDurations(fileDuration);
+    file.setSizeAndDuration(new SizeAndDuration(Duration.ofMinutes(30), TimeCodeRounding.DOWN));
+    Map<CueTrack, Duration> tracksDurations = file.getTracksDurations();
     assertEquals(2, tracksDurations.size());
 
     Iterator<Entry<CueTrack, Duration>> it = tracksDurations.entrySet().iterator();
@@ -194,12 +234,12 @@ class CueFileTest {
     assertEquals(Duration.ofMillis(610133L), entry1.getValue()); // duration is calculated from the frames diff, hence the 0.133s instead of 0.134s calculated from millis.
 
     assertSame(track2, entry2.getKey());
-    assertEquals(Duration.ofMillis(569466L), entry2.getValue());
+    assertEquals(Duration.ofMillis(572466L), entry2.getValue());
   }
 
   @Test
   void should_give_tostring() {
-    CueFile file = new CueFile("My File.WAV", FileType.WAVE);
+    CueFile file = new CueFile("My File.WAV", FileType.Audio.WAVE);
     assertEquals("FILE \"My File.WAV\" WAVE", file.toString());
   }
 }

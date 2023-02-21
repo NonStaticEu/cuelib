@@ -36,6 +36,7 @@ FILE "some file 2.WAV" WAVE
   TRACK 05 AUDIO
     TITLE "Title 5"
     PERFORMER "Performer 5"
+    INDEX 00 00:00:00
     INDEX 01 14:44:69
   TRACK 06 AUDIO
     TITLE Title 6
@@ -65,6 +66,7 @@ FILE "some file 1.mp3" MP3
     TITLE "Title 10"
     PERFORMER "Performer 10"
     FLAGS SCMS PRE
+    INDEX 00 00:00:00
     INDEX 01 34:46:14
   TRACK 11 AUDIO
     TITLE "Title 11"

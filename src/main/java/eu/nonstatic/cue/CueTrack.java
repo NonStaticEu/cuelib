@@ -9,24 +9,12 @@
  */
 package eu.nonstatic.cue;
 
+import lombok.*;
+
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
 
 @Getter @Setter
 @EqualsAndHashCode
@@ -37,7 +25,11 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
   public static final String KEYWORD = CueWords.TRACK;
   public static final int TRACK_ONE = 1;
   public static final int TRACK_MAX = 99;
+  public static final Duration DURATION_PREGAP_DEFAULT = CueDisc.DURATION_SEEK_WINDOW;
+  public static final Duration DURATION_MIN = DURATION_PREGAP_DEFAULT.plus(CueDisc.DURATION_SEEK_WINDOW); // important at the time of the red book, not anymore
+
   public static final Comparator<Integer> COMPARATOR = Comparator.nullsFirst(Comparator.naturalOrder());
+
 
   @Setter(AccessLevel.NONE)
   protected Integer number; // holds the number READ FROM FILE. DO NOT rely on it to identify tracks. Else it's computed on the fly unless you use renumberTracks()
@@ -49,9 +41,9 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
   private String songwriter;
   private String isrc; // should have a CCOOOYYSSSSS format
 
-  private TimeCode pregap;
+  private TimeCode preGap;  // should be a duration but let's keep a timecode to avoid rounding errors
   private final List<CueIndex> indexes;
-  private TimeCode postgap;
+  private TimeCode postGap; // should be a duration but let's keep a timecode to avoid rounding errors
   private final Set<CueFlag> flags;
 
   private final List<CueRemark> remarks;
@@ -92,9 +84,9 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
     trackCopy.performer = performer;
     trackCopy.songwriter = songwriter;
     trackCopy.isrc = isrc;
-    trackCopy.pregap = pregap;
+    trackCopy.preGap = preGap;
     indexes.forEach(index -> trackCopy.addIndexUnsafe(index.deepCopy()));
-    trackCopy.postgap = postgap;
+    trackCopy.postGap = postGap;
     flags.forEach(trackCopy::addFlag);
     remarks.forEach(trackCopy::addRemark);
     trackCopy.others.addAll(others);
@@ -116,10 +108,6 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
     this.songwriter = songwriter;
   }
 
-  private boolean isAudio() {
-    return type.equals(TrackType.AUDIO);
-  }
-
   public void setPerformerAndTitle(String performer, String title) {
     setPerformer(performer);
     setTitle(title);
@@ -133,6 +121,23 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
     this.isrc = matcher.group(1) + matcher.group(2) + matcher.group(3) + matcher.group(4);
   }
 
+
+  public void setPreGap(TimeCode preGap) {
+    this.preGap = preGap;
+  }
+
+  public void setPreGap(Duration preGap, TimeCodeRounding rounding) {
+    setPreGap(preGap != null ? new TimeCode(preGap, rounding) : null);
+  }
+
+  public void setPostGap(TimeCode postGap) {
+    this.postGap = postGap;
+  }
+
+  public void setPostGap(Duration postGap, TimeCodeRounding rounding) {
+    setPostGap(postGap != null ? new TimeCode(postGap, rounding) : null);
+  }
+
   @Override
   public CueIterator<CueIndex> iterator() {
     return new CueIterator<>(indexes);
@@ -142,13 +147,13 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
     return Collections.unmodifiableList(indexes);
   }
 
-  public CueIndex getIndex(int number) {
+  public CueIndex getIndex(int number) throws IndexNotFoundException {
     CueTools.validateRange("Index number", number,
         Optional.ofNullable(getFirstIndex()).map(CueIndex::getNumber).orElse(CueIndex.INDEX_TRACK_START),
         getIndexCount());
 
     return Optional.ofNullable(getIndexUnsafe(number))
-        .orElseThrow(() -> new IllegalArgumentException(Integer.toString(number)));
+        .orElseThrow(() -> new IndexNotFoundException(number));
   }
 
   private CueIndex getIndexUnsafe(int number) {
@@ -178,8 +183,20 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
       : CueIndex.INDEX_TRACK_START; // this is opinionated
   }
 
-  public boolean hasPreGap() {
+  private boolean isAudio() {
+    return type.equals(TrackType.AUDIO);
+  }
+
+  public boolean hasPreGapIndex() {
     return getPreGapIndex() != null;
+  }
+
+  public boolean hasPreGap() {
+    return hasPreGapIndex() || getPreGap() != null;
+  }
+
+  public boolean hasPostGap() {
+    return getPostGap() != null;
   }
 
   public CueIndex getPreGapIndex() {
@@ -297,16 +314,30 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
    * This method doesn't check for bottom index (0 or 1) because this track number is unreliable. This can only be done at the disc level.
    * Note: in theory a cue may not respect timecodes ordering (next > previous)
    */
-  public List<String> checkConsistency(boolean withTimeCodes) {
-    var issues = new ArrayList<String>();
+  public CueIssues checkConsistency(boolean withTimeCodes) {
+    var issues = new CueIssues();
+
+    // check at least one index
     try {
-      CueTools.validateIndexRange("Track " + number + " indexes", getIndexCount(), CueIndex.INDEX_MAX);
-    } catch(IllegalArgumentException e) { // theoretically this code is unreachable since the same validation happens adding an index
-      issues.add(e.getMessage());
+      CueTools.validateRange("Track " + number + " index count", getIndexCount(), 1, CueIndex.INDEX_MAX);
+
+      // indexed chaining is already ensured by the insertIndex method
+      // addIndex and insertIndex method also make sure the first index is 0 or 1
+      // but we need to make sure index 1 is present in a track
+      if(getIndexUnsafe(CueIndex.INDEX_TRACK_START) == null) {
+        issues.add(String.format("Track %d doesn't have mandatory index %d", number, CueIndex.INDEX_TRACK_START));
+      }
+    } catch(IllegalArgumentException e) {
+      issues.add(e);
+    }
+
+    // check for double pregap
+    if(preGap != null && hasPreGapIndex()) {
+      issues.add(String.format("Track %d has both a pregap duration and a pregap index", number)); // yet this would happen with a hidden track (first track's index 0) as there's always a 2s pregap
     }
 
     if(withTimeCodes) {
-      issues.addAll(checkTimeCodesChaining(null).issues);
+      issues.add(checkTimeCodesChaining(null).issue);
     }
     return issues;
   }
@@ -316,20 +347,20 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
    * but we can also assume unordered timecodes are actually a mistake
    */
   TimeCodeValidation checkTimeCodesChaining(CueIndex latestIndex) {
-    var issues = new ArrayList<String>();
+    String issue = null;
     for (CueIndex index : indexes) {
       if(latestIndex != null && index.getTimeCode().compareTo(latestIndex.getTimeCode()) < 0) {
-        issues.add("Track " + number + " index " + index.number + " timecode " + index.getTimeCode() + " is before its predecessor " + latestIndex.getTimeCode());
+        issue = String.format("Track %d index %d timecode %s is before its predecessor %s", number, index.number, index.getTimeCode(), latestIndex.getTimeCode());
       }
       latestIndex = index;
     }
-    return new TimeCodeValidation(latestIndex, issues);
+    return new TimeCodeValidation(latestIndex, issue);
   }
 
   @AllArgsConstructor
   static final class TimeCodeValidation {
     CueIndex latest;
-    List<String> issues;
+    String issue;
   }
 
   public synchronized Set<CueFlag> getFlags() {
@@ -410,8 +441,8 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
 
     Duration trackDuration;
 
-    CueIndex thisStartIndex = getStartIndex();
-    if(thisStartIndex == null) {
+    CueIndex firstIndex = getFirstIndex();
+    if(firstIndex == null) {
       throw new IndexNotFoundException(CueIndex.INDEX_TRACK_START);
     }
     if (otherTrack != null) {
@@ -419,29 +450,39 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
         throw new IllegalTrackTypeException(type, TrackType.AUDIO);
       } else if(otherTrack.getIndexCount() > 0) {
         CueIndex otherStartIndex = otherTrack.getFirstIndex();
-        trackDuration = thisStartIndex.until(otherStartIndex);
+        trackDuration = firstIndex.until(otherStartIndex);
         if (trackDuration.isNegative()) {
-          throw new NegativeDurationException(thisStartIndex.getTimeCode(), otherStartIndex.getTimeCode());
+          throw new NegativeDurationException(firstIndex.getTimeCode(), otherStartIndex.getTimeCode());
         }
       } else {
         throw new IndexNotFoundException(CueIndex.INDEX_PRE_GAP, CueIndex.INDEX_TRACK_START);
       }
-    } else { // we can't but count till the end of the file
-      trackDuration = fileDuration.minusMillis(thisStartIndex.getTimeMillis());
+    } else if(fileDuration != null) { // we can't but count till the end of the file
+      trackDuration = fileDuration.minusMillis(firstIndex.getTimeMillis());
       if (trackDuration.isNegative()) {
-        throw new NegativeDurationException(thisStartIndex.getTimeCode(), fileDuration);
+        throw new NegativeDurationException(firstIndex.getTimeCode(), fileDuration);
       }
+    } else {
+      throw new NullPointerException("fileDuration");
     }
+
+    if(preGap != null) {
+      trackDuration = trackDuration.plus(preGap.toDuration());
+    }
+    if(postGap != null) {
+      trackDuration = trackDuration.plus(postGap.toDuration());
+    }
+
     return trackDuration;
   }
 
   @Override
-  public String toSheetLine() {
+  public String toSheetLine(CueSheetOptions options) {
     return String.format("%s %02d %s", KEYWORD, number, type);
   }
 
   @Override
   public String toString() {
-    return toSheetLine();
+    return toSheetLine(null);
   }
 }

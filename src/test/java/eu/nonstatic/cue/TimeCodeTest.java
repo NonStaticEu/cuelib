@@ -22,13 +22,13 @@ class TimeCodeTest {
 
   @Test
   void should_build_from_millis() {
-    TimeCode timeCode = new TimeCode(620400L);
+    TimeCode timeCode = new TimeCode(620400L, TimeCode.DEFAULT_ROUNDING);
     assertEquals("10:20:30", timeCode.toString());
   }
 
   @Test
   void should_build_from_duration() {
-    TimeCode timeCode = new TimeCode(Duration.ofMillis(620400L));
+    TimeCode timeCode = new TimeCode(Duration.ofMillis(620400L), TimeCode.DEFAULT_ROUNDING);
     assertEquals("10:20:30", timeCode.toString());
   }
 
@@ -42,6 +42,11 @@ class TimeCodeTest {
   void should_build_from_other() {
     TimeCode timeCode = new TimeCode(new TimeCode(10, 20, 30));
     assertEquals("10:20:30", timeCode.toString());
+  }
+
+  @Test
+  void should_build_from_frames() {
+    assertEquals("15:24:66", TimeCode.ofFrames(69366).toString());
   }
 
   @Test
@@ -121,7 +126,7 @@ class TimeCodeTest {
     TimeCode timeCode1 = new TimeCode(10, 20, 30);
 
     assertEquals(timeCode1, timeCode1);
-    assertEquals(timeCode1, new TimeCode(620400L));
+    assertEquals(timeCode1, new TimeCode(620400L, TimeCode.DEFAULT_ROUNDING));
     assertNotEquals(timeCode1, new TimeCode(30, 20, 10));
     assertFalse(timeCode1.equals("whatever")); // using equals for coverage
     assertFalse(timeCode1.equals(null)); // using equals for coverage

@@ -41,7 +41,7 @@ class CueTrackTest {
     assertNull(track.getFirstIndex());
     assertNull(track.getLastIndex());
     assertEquals(1, track.getNextIndexNumber());
-    assertNull(track.getPregap());
+    assertNull(track.getPreGap());
     assertNull(track.getPreGapIndex());
 
     assertEquals(0, track.getFlags().size());

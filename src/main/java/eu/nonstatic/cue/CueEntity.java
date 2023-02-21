@@ -10,7 +10,7 @@
 package eu.nonstatic.cue;
 
 public interface CueEntity {
-  // maybe getLineNumber()
+  // MAYBE getLineNumber()
 
-  String toSheetLine();
+  String toSheetLine(CueSheetOptions options);
 }

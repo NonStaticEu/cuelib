@@ -10,14 +10,20 @@
 package eu.nonstatic.cue;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +42,10 @@ abstract class CueTestBase {
     return lines;
   }
 
+  public static void writeLines(File file, List<String> lines, Charset cs) throws IOException {
+    writeLines(file.toPath(), lines, cs);
+  }
+
   public static void writeLines(Path file, List<String> lines, Charset cs) throws IOException {
     try(PrintWriter pw = new PrintWriter(Files.newBufferedWriter(file, cs, StandardOpenOption.TRUNCATE_EXISTING))) {
       for (String line : lines) {
@@ -44,4 +54,40 @@ abstract class CueTestBase {
     }
   }
 
+  public static Path copyFileContents(URL url, Path dir, String fileName) throws IOException {
+    return copyFileContents(url, dir.resolve(fileName));
+  }
+
+  public static Path copyFileContents(URL url, Path file) throws IOException {
+    try(InputStream mp3Stream  = url.openStream()) {
+      Files.copy(mp3Stream, file, StandardCopyOption.REPLACE_EXISTING);
+    }
+    return file;
+  }
+
+  public static void deleteRecursive(Path dir) throws IOException {
+    Files.walkFileTree(dir, new FileVisitor<>() {
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.delete(file);
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        Files.delete(dir);
+        return FileVisitResult.CONTINUE;
+      }
+    });
+  }
 }

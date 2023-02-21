@@ -20,8 +20,8 @@ public class CueHiddenTrack {
   @Getter
   private Duration duration; //from index 0 till index 1 on track 1
 
-  public FileAndType getFileAndFormat() {
-    return fileAndTrack.ff;
+  public FileReference getFileAndFormat() {
+    return fileAndTrack.fileReference;
   }
 
   public CueTrack getTrack() {

@@ -49,3 +49,6 @@ pipeline.properties
 *.html%
 create_project.groovy
 config_tmp.xml
+
+
+sonar.sh

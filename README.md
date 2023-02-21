@@ -6,6 +6,21 @@ Cue files were invented by Jeff Arnold for CDRWIN
 * BOM, if any, should be used to detect encoding
 * support ; and // comments
 
+## Useful Docs
+https://en.wikipedia.org/wiki/Cue_sheet_(computing)  
+https://wiki.hydrogenaud.io/index.php?title=Cue_sheet  
+https://wiki.hydrogenaud.io/index.php?title=EAC_and_Cue_Sheets  
+https://www.gnu.org/software/ccd2cue/manual/html_node/CUE-sheet-format.html#CUE-sheet-format  
+https://github.com/libyal/libodraw/blob/main/documentation/CUE%20sheet%20format.asciidoc  
+Regards to Jeff Arnold
+
+As well as:  
+https://archive.org/details/RedBookAudioRecordingCompactDiscDigitalAudioSystemIEC60908SecondEdition199902ISBN2831846382  
+https://en.wikipedia.org/wiki/Compact_disc  
+https://en.wikipedia.org/wiki/Blue_Book_(CD_standard)
+https://en.wikipedia.org/wiki/CD-ROM  
+https://obsoletemedia.org/audio/compact-disc-rainbow-books/  
+https://community.metabrainz.org/t/cd-tracks-that-have-pre-gap-audio/476178/7
 
 # LICENSE
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.

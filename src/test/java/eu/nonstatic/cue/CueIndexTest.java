@@ -65,7 +65,7 @@ class CueIndexTest {
     index.floorSecond();
     assertEquals(new TimeCode(54, 32, 0), index.getTimeCode());
 
-    index.setTimeMillis(2547861);
+    index.setTimeMillis(2547861, TimeCodeRounding.CLOSEST);
     assertEquals(new TimeCode(42, 27, 65), index.getTimeCode());
   }
 

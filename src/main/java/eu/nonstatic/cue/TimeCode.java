@@ -9,10 +9,11 @@
  */
 package eu.nonstatic.cue;
 
-import static java.lang.Integer.min;
 import static java.lang.Integer.parseInt;
+import static java.util.Objects.requireNonNullElse;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Comparator;
 import lombok.Getter;
@@ -25,6 +26,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
   public static final int FRAMES_PER_SECOND = 75;
   public static final int MILLIS_PER_SECOND = 1000;
+  public static final BigDecimal MILLIS_PER_SECOND_BD = BigDecimal.valueOf(MILLIS_PER_SECOND);
   private static final int HUNDRED = 100;
   public static final int SECONDS_PER_MINUTE = 60;
   public static final int MAX_CDR_MINUTES = 100; // yes I know about the red book, but there's this too: https://www.amazon.com/dp/B000R4LZ3A
@@ -33,31 +35,57 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
   public static final TimeCode ZERO_SECOND = new TimeCode(0, 0, 0);
   public static final TimeCode ONE_SECOND = new TimeCode(0, 1, 0);
   public static final TimeCode TWO_SECONDS = new TimeCode(0, 2, 0);
+  static final TimeCodeRounding DEFAULT_ROUNDING = TimeCodeRounding.CLOSEST;
+
 
   private final int minutes;
   private final int seconds;
   private final int frames;
+  private final TimeCodeRounding rounding;
 
 
-  public TimeCode(int minutes, int seconds, int frames) {
+  private TimeCode(int minutes, int seconds, int frames, TimeCodeRounding rounding) {
     validate(minutes, seconds, frames);
     this.minutes = minutes;
     this.seconds = seconds;
     this.frames = frames;
+    this.rounding = rounding;
   }
 
-  public TimeCode(long millis) {
-    this((int) (millis / (SECONDS_PER_MINUTE * MILLIS_PER_SECOND)),
-      (int) ((millis / MILLIS_PER_SECOND) % SECONDS_PER_MINUTE),
-      Math.round((float) (FRAMES_PER_SECOND * (millis % MILLIS_PER_SECOND)) / MILLIS_PER_SECOND));
+  public TimeCode(int minutes, int seconds, int frames) {
+    this(minutes, seconds, frames, DEFAULT_ROUNDING);
   }
 
-  public TimeCode(Duration duration) {
-    this(duration.toMillis());
+  /**
+   * Caution:
+   * rounding UP tends to create time ranges exceeding the original duration
+   * rounding DOWN tends to create time ranges cropping the original duration
+   */
+  public TimeCode(long millis, TimeCodeRounding rounding) {
+    this(
+        (int) (millis / (SECONDS_PER_MINUTE * MILLIS_PER_SECOND)),
+        (int) ((millis / MILLIS_PER_SECOND) % SECONDS_PER_MINUTE),
+        BigDecimal.valueOf(FRAMES_PER_SECOND * (millis % MILLIS_PER_SECOND))
+            .divide(MILLIS_PER_SECOND_BD, requireNonNullElse(rounding, DEFAULT_ROUNDING).roundingMode)
+            .intValue(),
+        rounding
+    );
+  }
+
+  public TimeCode(Duration duration, TimeCodeRounding rounding) {
+    this(duration.toMillis(), rounding);
   }
 
   public TimeCode(TimeCode timeCode) {
-    this(timeCode.minutes, timeCode.seconds, timeCode.frames);
+    this(timeCode.minutes, timeCode.seconds, timeCode.frames, timeCode.rounding);
+  }
+
+  public static TimeCode ofFrames(int frames) {
+    int ff = frames % FRAMES_PER_SECOND;
+    int ts = frames / FRAMES_PER_SECOND;
+    int mm  = ts / SECONDS_PER_MINUTE;
+    int ss = ts % SECONDS_PER_MINUTE;
+    return new TimeCode(mm, ss, ff);
   }
 
   public static void validate(int minutes, int seconds, int frames) {
@@ -140,7 +168,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
   }
 
   public TimeCode minus(long otherMillis) {
-    return new TimeCode(toMillis() - otherMillis);
+    return new TimeCode(toMillis() - otherMillis, rounding);
   }
 
   public TimeCode plus(Duration other) {
@@ -148,7 +176,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
   }
 
   public TimeCode plus(long otherMillis) {
-    return new TimeCode(toMillis() + otherMillis);
+    return new TimeCode(toMillis() + otherMillis, rounding);
   }
 
   @Override

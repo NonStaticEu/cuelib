@@ -23,7 +23,7 @@ public class NegativeDurationException extends RuntimeException {
   }
 
   public NegativeDurationException(TimeCode timeCode, Duration fileDuration) {
-    this("Difference between this track and file duration is negative: " + timeCode + " > " + fileDuration, timeCode, new TimeCode(fileDuration));
+    this("Difference between this track and file duration is negative: " + timeCode + " > " + fileDuration, timeCode, new TimeCode(fileDuration, TimeCode.DEFAULT_ROUNDING));
   }
 
   private NegativeDurationException(String message, TimeCode timeCode1, TimeCode timeCode2) {

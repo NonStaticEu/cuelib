@@ -10,61 +10,85 @@
 package eu.nonstatic.cue;
 
 import eu.nonstatic.cue.CueTrack.TimeCodeValidation;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
+
+import java.io.File;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @EqualsAndHashCode
-public class CueFile implements CueEntity, CueIterable<CueTrack> {
+public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable {
 
   public static final String KEYWORD = CueWords.FILE;
 
   private static final String RANGE_MESSAGE_TRACK_INDEX = "Track index";
+  private static final CueSheetOptions TO_STRING_OPTIONS = CueSheetOptions.builder().fullPaths(true).build();
 
-  @Getter(AccessLevel.PACKAGE)
-  private FileAndType fileAndType;
+  protected FileReference fileReference;
 
   private final ArrayList<CueTrack> tracks;
   protected boolean renumberingNecessary;
 
   // FileAndFormat isn't a first class citizen, hence ctor visibility
-  CueFile(FileAndType fileAndType) {
-    this.fileAndType = fileAndType;
+  CueFile(FileReference fileReference) {
+    this.fileReference = fileReference;
     this.tracks = new ArrayList<>(12);
   }
 
-  public CueFile(String file, String format) {
-    this(new FileAndType(file, format));
+  public CueFile(String file, FileType type) {
+    this(new FileReference(file, type));
   }
 
-  public CueFile(String file, String format, CueTrack... tracks) {
-    this(file, format, List.of(tracks));
+  public CueFile(String file, FileType type, CueTrack... tracks) {
+    this(file, type, List.of(tracks));
   }
 
-  public CueFile(String file, String format, Collection<? extends CueTrack> tracks) {
-    this(file, format);
+  public CueFile(String file, FileType type, Collection<? extends CueTrack> tracks) {
+    this(file, type);
     tracks.forEach(this::addTrack);
   }
 
-  public String getFile() {
-    return fileAndType.getFile();
+  public CueFile(File file, TimeCodeRounding rounding) {
+    this(new FileReference(file, rounding));
   }
 
-  public String getFormat() {
-    return fileAndType.getType();
+  public CueFile(File file, FileType.Data type) {
+    this(new FileReference(file, type));
+  }
+
+  public CueFile(Path file, TimeCodeRounding rounding) {
+    this(new FileReference(file, rounding));
+  }
+
+  public CueFile(Path file, FileType.Data type) {
+    this(new FileReference(file, type));
+  }
+
+
+  @Override
+  public SizeAndDuration getSizeDuration() {
+    return fileReference.getSizeDuration();
+  }
+
+  @Override
+  public void setSizeAndDuration(SizeAndDuration sizeAndDuration) {
+    fileReference.setSizeAndDuration(sizeAndDuration);
+  }
+
+  @Override
+  public String getFile() {
+    return fileReference.getFile();
+  }
+
+  @Override
+  public FileType getType() {
+    return fileReference.getType();
   }
 
   public CueFile deepCopy() {
-    CueFile fileCopy = new CueFile(fileAndType);
+    CueFile fileCopy = new CueFile(fileReference);
     tracks.forEach(track -> fileCopy.addTrackUnsafe(track.deepCopy()));
     return fileCopy;
   }
@@ -79,14 +103,25 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
   }
 
   /**
-   * @return the first track on this file. It may not be track 1 on a cue sheet
+   * private not to be confusing between track numbers (in CueDisc) and indexes (here)
+   */
+  private CueTrack getTrack(int idx) {
+    try {
+      return tracks.get(idx);
+    } catch(IndexOutOfBoundsException e) {
+      throw new TrackNotFoundException(e);
+    }
+  }
+
+  /**
+   * @return the first track on this file. It won't be track 1 on a cue sheet if this is not the first file
    */
   public CueTrack getFirstTrack() {
-    return tracks.isEmpty() ? null : tracks.get(0);
+    return tracks.isEmpty() ? null : getTrack(0);
   }
 
   public CueTrack getLastTrack() {
-    return tracks.isEmpty() ? null : tracks.get(tracks.size() - 1);
+    return tracks.isEmpty() ? null : getTrack(tracks.size() - 1);
   }
 
   public int getTrackCount() {
@@ -98,7 +133,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
   }
 
   protected List<FileAndTrack> split() {
-    return tracks.stream().map(track -> new FileAndTrack(fileAndType, track)).collect(Collectors.toList());
+    return tracks.stream().map(track -> new FileAndTrack(fileReference, track)).collect(Collectors.toList());
   }
 
   /**
@@ -137,19 +172,17 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
   /**
    * The cue file doesn't give the last track's ending time-code, so we need to know its run length.
    * @param idx
-   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
    * @return the track's duration. if the track's diff with the next one is negative, then the returned value is the diff with the end of the file instead
    * @throws IllegalTrackTypeException if this track or the next one is not audio
    * @throws IndexNotFoundException if the needed index(es) for the computation do(es)n't exist
    * @throws NegativeDurationException if the last track 's duration is requested and the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
    */
-  public Duration getTrackDuration(int idx, Duration fileDuration) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
-    return getTrackDuration(idx, fileDuration, true);
+  public Duration getTrackDuration(int idx) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    return getTrackDuration(idx, true);
   }
 
   /**
    * @param idx
-   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
    * @param allowDisorderedTimeCodes
    * @return the track's duration
    * @throws IllegalTrackTypeException if this track or the next one is not audio
@@ -157,59 +190,71 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
    * @throws NegativeDurationException if allowDisorderedTimeCodes is false and the track's length is negative,
    * or if the last track 's duration is requested and the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
    */
-  public Duration getTrackDuration(int idx, Duration fileDuration, boolean allowDisorderedTimeCodes) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
-    int trackCount = tracks.size();
-    CueTools.validateRange(RANGE_MESSAGE_TRACK_INDEX, idx, 0, trackCount-1);
+  public Duration getTrackDuration(int idx, boolean allowDisorderedTimeCodes) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    CueTrack track = getTrack(idx); // first because I want range check
 
-    CueTrack track = tracks.get(idx);
-    if(idx < trackCount-1) {
-      CueTrack nextTrack = tracks.get(idx+1);
-      return track.until(nextTrack, fileDuration, allowDisorderedTimeCodes);
-    } else { // last track
-      return track.until(null, fileDuration);
+    if(isAudio()) {
+      Duration fileDuration = Optional.ofNullable(fileReference.sizeDuration).map(sd -> sd.duration).orElse(null);
+      int trackCount = tracks.size();
+      CueTools.validateRange(RANGE_MESSAGE_TRACK_INDEX, idx, 0, trackCount - 1);
+
+      if (idx < trackCount - 1) {
+        CueTrack nextTrack = getTrack(idx + 1);
+        return track.until(nextTrack, fileDuration, allowDisorderedTimeCodes);
+      } else if (fileDuration != null) { // last track
+        return track.until(null, fileDuration);
+      } else {
+        throw new IllegalArgumentException("No duration has been specified to get the last track's length for " + fileReference.file);
+      }
+    } else {
+      return null;
     }
   }
 
   /**
-   * Computes the tracks durations
-   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
-   * @return the track's duration. if the track's diff with the next one is negative, then the returned value is the diff with the end of the file instead
-   * @throws IllegalTrackTypeException if at least one track is not audio
+   * Computes the tracks durations *without* lead-in/out
+   * @return the track's duration.
+   * if the file is not audio the returned map is empty
+   * if the track's diff with the next one is negative, then the returned value is the diff with the end of the file instead
+   * @throws IllegalTrackTypeException if at least one track is not audio despite being in an audio file
    * @throws IndexNotFoundException if the needed index(es) for the computations do(es)n't exist
    * @throws NegativeDurationException if the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
    */
-  public Map<CueTrack, Duration> getTracksDurations(Duration fileDuration) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
-    return getTracksDurations(fileDuration, true);
+  public Map<CueTrack, Duration> getTracksDurations() throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    return getTracksDurations(true);
   }
 
   /**
-   * Computes the tracks durations
-   * @param fileDuration The cue file doesn't give the last track's ending time-code, so we need to know its run length.
-   * @param allowDisorderedTimeCodes
-   * @return the tracks' durations
-   * @throws IllegalTrackTypeException if at least one track is not audio
+   * Computes the tracks durations *without* lead-in/out
+   * @param allowDisorderedTimeCodes  to allow unordered timecodes
+   * @return the tracks' durations. if the file is not audio the returned map is empty
+   * @throws IllegalTrackTypeException if at least one track is not audio despite being in an audio file
    * @throws IndexNotFoundException if the needed index(es) for the computations do(es)n't exist
    * @throws NegativeDurationException if allowDisorderedTimeCodes is false and timecodes are inconsistent (meaning at least one track length turns out to be negative)
    */
-  public Map<CueTrack, Duration> getTracksDurations(Duration fileDuration, boolean allowDisorderedTimeCodes) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
-    if (tracks.isEmpty()) {
-      return Map.of();
-    } else {
-      var map = new LinkedHashMap<CueTrack, Duration>();
+  public Map<CueTrack, Duration> getTracksDurations(boolean allowDisorderedTimeCodes) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
+    if (!tracks.isEmpty() && isAudio()) { // tracks emptiness first in case fileAndType isn't set
+      Duration fileDuration = Optional.ofNullable(fileReference.sizeDuration)
+          .map(sd -> sd.duration)
+          .orElseThrow(() -> new IllegalArgumentException("No duration has been specified to get the last track's length for " + fileReference.file));
+
+      var tracksDurations = new LinkedHashMap<CueTrack, Duration>(); // linked to preserve order
       Iterator<CueTrack> tit = tracks.iterator();
       CueTrack currentTrack = tit.next();
 
       while (tit.hasNext()) {
         CueTrack nextTrack = tit.next();
-        map.put(currentTrack, currentTrack.until(nextTrack, fileDuration, allowDisorderedTimeCodes));
+        Duration trackDuration = currentTrack.until(nextTrack, fileDuration, allowDisorderedTimeCodes);
+        tracksDurations.put(currentTrack, trackDuration);
         currentTrack = nextTrack;
       }
 
-      map.put(currentTrack, currentTrack.until(null, fileDuration));
-      return map;
+      tracksDurations.put(currentTrack, currentTrack.until(null, fileDuration));
+      return tracksDurations;
+    } else {
+      return Map.of();
     }
   }
-
 
   public List<CueIndex> getIndexes() {
     return tracks.stream().flatMap(track -> track.getIndexes().stream()).collect(Collectors.toList());
@@ -220,31 +265,39 @@ public class CueFile implements CueEntity, CueIterable<CueTrack> {
   }
 
   /**
-   * This method doesn't check tracks' numbers consistency, or whether there is at most one pregap. This can only be done at the disc level.
+   * This method doesn't check tracks' numbers consistency. This can only be done at the disc level.
    * Note: in theory a cue may not respect timecodes ordering (next > previous)
    */
-  public List<String> checkConsistency(boolean orderedTimeCodes) {
-    var issues = new ArrayList<String>();
+  public CueIssues checkConsistency(boolean orderedTimeCodes) {
+    var issues = new CueIssues();
+
     tracks.forEach(track -> issues.addAll(track.checkConsistency(false)));
+
+    // Make sure the first index of the first track has timecode 00:00:00.
+    Optional.ofNullable(getFirstTrack())
+      .map(CueTrack::getFirstIndex) // tracks consistency made sure there's >= 1 index per track, just avoiding NPE
+      .filter(firstIndex -> !TimeCode.ZERO_SECOND.equals(firstIndex.getTimeCode()))
+      .ifPresent(cueIndex -> issues.add(String.format("File %s doesn't have %s as its first track's first index", fileReference.file, TimeCode.ZERO_SECOND)));
+
 
     if(orderedTimeCodes) {
       CueIndex latestIndex = null;
       for (CueTrack track : getTracks()) {
         TimeCodeValidation timeCodeValidation = track.checkTimeCodesChaining(latestIndex);
-        issues.addAll(timeCodeValidation.issues);
+        issues.add(timeCodeValidation.issue);
         latestIndex = timeCodeValidation.latest;
       }
     }
     return issues;
   }
 
-  @Override
-  public String toSheetLine() {
-    return String.format("%s \"%s\" %s", KEYWORD, getFile(), getFormat());
+  public String toSheetLine(CueSheetOptions options) {
+    String file = options.isFullPaths() ? getFile() : getFileName();
+    return String.format("%s \"%s\" %s", KEYWORD, file, getType().getValue());
   }
 
   @Override
   public String toString() {
-    return toSheetLine();
+    return toSheetLine(TO_STRING_OPTIONS);
   }
 }

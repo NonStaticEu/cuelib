@@ -73,7 +73,7 @@ public class CueRemark implements CueEntity {
   }
 
   @Override
-  public String toSheetLine() {
+  public String toSheetLine(CueSheetOptions options) {
     StringBuilder sb = new StringBuilder(KEYWORD);
     if (tag != null) {
       sb.append(' ').append(tag);
@@ -86,6 +86,6 @@ public class CueRemark implements CueEntity {
 
   @Override
   public String toString() {
-    return toSheetLine();
+    return toSheetLine(null);
   }
 }

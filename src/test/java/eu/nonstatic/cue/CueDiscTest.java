@@ -22,11 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.nonstatic.cue.CueIterable.CueIterator;
+import eu.nonstatic.cue.FileType.Audio;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class CueDiscTest extends CueTestBase {
@@ -64,7 +64,7 @@ class CueDiscTest extends CueTestBase {
 
   @Test
   void should_build_with_files() {
-    CueDisc disc = new CueDisc(null, StandardCharsets.UTF_8, new CueFile("file0", "format0"), new CueFile("file1", "format1"));
+    CueDisc disc = new CueDisc(null, StandardCharsets.UTF_8, new CueFile("file0", FileType.Data.BINARY), new CueFile("file1", FileType.Audio.AIFF));
     assertEquals(2, disc.getFileCount());
 
     List<CueFile> files = disc.getFiles();
@@ -74,7 +74,7 @@ class CueDiscTest extends CueTestBase {
 
   private static CueDisc buildDiscWithTwoTracks() {
     CueDisc disc = new CueDisc();
-    CueFile file0 = new CueFile("file_0", FileType.MP3);
+    CueFile file0 = new CueFile("file_0", FileType.Audio.MP3);
 
     CueTrack track1 = new CueTrack(TrackType.AUDIO);
     track1.setTitle("title_1");
@@ -116,7 +116,7 @@ class CueDiscTest extends CueTestBase {
     assertSame(file0, disc.getLastFile());
 
     assertEquals("file_0", file0.getFile());
-    assertEquals(FileType.MP3, file0.getFormat());
+    assertEquals(FileType.Audio.MP3, file0.getType());
 
     assertEquals(2, file0.getTrackCount());
     List<CueTrack> tracks = file0.getTracks();
@@ -141,11 +141,11 @@ class CueDiscTest extends CueTestBase {
     t2.addIndex(new CueIndex(3, 1, 0, 0));
     assertEquals(3, t2.getIndexCount());
 
-    CueFile file1 = new CueFile("file_1", FileType.BINARY, new CueTrack(5, TrackType.AUDIO));
+    CueFile file1 = new CueFile("file_1", FileType.Data.BINARY, new CueTrack(5, TrackType.AUDIO));
     disc.addFile(file1);
     assertEquals(2, disc.getFileCount());
 
-    disc.addFile(new CueFile("file_2", FileType.BINARY));
+    disc.addFile(new CueFile("file_2", FileType.Data.BINARY));
     assertEquals(file1.getLastTrack(), disc.getLastTrack()); // despite a new trailing (empty) file
   }
 
@@ -162,7 +162,7 @@ class CueDiscTest extends CueTestBase {
     assertEquals(1, disc.getFileCount());
     List<CueFile> files = disc.getFiles();
     assertEquals(1, files.size());
-    CueFile fooBarFile = new CueFile("foo", "bar");
+    CueFile fooBarFile = new CueFile("foo", FileType.Data.BINARY);
     assertThrows(UnsupportedOperationException.class, () -> files.add(fooBarFile));
     return files;
   }
@@ -215,6 +215,27 @@ class CueDiscTest extends CueTestBase {
   }
 
   @Test
+  void should_number_correctly_when_first_track_not_1() throws IOException {
+    CueDisc disc = new CueDisc();
+    disc.setFirstTrackNumber(42);
+    CueFile file1 = disc.addFile(new CueFile("path1", FileType.Audio.WAVE));
+    file1.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(TimeCode.ZERO_SECOND), new CueIndex(TimeCode.ONE_SECOND)));
+    file1.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(CueIndex.INDEX_PRE_GAP, TimeCode.ZERO_SECOND), new CueIndex(TimeCode.TWO_SECONDS)));
+    CueFile file2 = disc.addFile(new CueFile("path2", Audio.AIFF));
+    file2.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(TimeCode.ZERO_SECOND)));
+    file2.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(TimeCode.TWO_SECONDS)));
+
+    disc.renumberTracks();
+
+    List<CueTrack> tracks = disc.getTracks();
+    assertEquals(4, tracks.size());
+    assertEquals(42, tracks.get(0).number);
+    assertEquals(43, tracks.get(1).number);
+    assertEquals(44, tracks.get(2).number);
+    assertEquals(45, tracks.get(3).number);
+  }
+
+  @Test
   void should_set_catalog() {
     CueDisc disc = new CueDisc();
     assertThrows(IllegalArgumentException.class, () -> disc.setCatalog("whatever"));
@@ -240,10 +261,10 @@ class CueDiscTest extends CueTestBase {
 
     CueTrack track = new CueTrack(TrackType.AUDIO, "performer", "title");
 
-    CueFile file1 = new CueFile("path1", "format1");
+    CueFile file1 = new CueFile("path1", FileType.Data.BINARY);
     disc.addFile(file1).addTrack(track);
 
-    CueFile file2 = new CueFile("path2", "format2");
+    CueFile file2 = new CueFile("path2", FileType.Audio.MP3);
     file2.addTrack(track);
     disc.addFile(file2);
 
@@ -256,7 +277,7 @@ class CueDiscTest extends CueTestBase {
   @Test
   void should_clear_files() {
     CueDisc disc = new CueDisc();
-    disc.addFile(new CueFile(null));
+    disc.addFile(new CueFile((String)null, null));
     assertEquals(1, disc.getFileCount());
 
     disc.clearFiles();
@@ -288,17 +309,17 @@ class CueDiscTest extends CueTestBase {
     CueDisc disc = new CueDisc();
     assertThrows(IllegalArgumentException.class, () -> disc.chunk(1));
 
-    CueFile actualFile0 = disc.addFile(new CueFile("file0", "format0"));
+    CueFile actualFile0 = disc.addFile(new CueFile("file0", FileType.Data.BINARY));
     assertThrows(IllegalArgumentException.class, () -> disc.chunk(1));
 
     CueTrack actualTrack1 = actualFile0.addTrack(new CueTrack(TrackType.MODE1_2352));
 
-    CueFile actualFile1 = disc.addFile(new CueFile("file1", "format1"));
+    CueFile actualFile1 = disc.addFile(new CueFile("file1", FileType.Audio.AIFF));
     CueTrack actualTrack2 = actualFile1.addTrack(new CueTrack(TrackType.MODE2_2324));
 
     FileAndTrack chunk = disc.chunk(2);
-    assertEquals("file1", chunk.ff.file);
-    assertEquals("format1", chunk.ff.type);
+    assertEquals("file1", chunk.fileReference.file);
+    assertEquals(FileType.Audio.AIFF, chunk.fileReference.type);
     assertSame(actualTrack2, chunk.track);
   }
 
@@ -308,7 +329,7 @@ class CueDiscTest extends CueTestBase {
     assertFalse(disc.hasHiddenTrack());
     assertNull(disc.getHiddenTrack());
 
-    CueFile file = new CueFile("file", "format");
+    CueFile file = new CueFile("file.aiff", FileType.Audio.AIFF);
     CueFile actualFile = disc.addFile(file);
     assertFalse(disc.hasHiddenTrack());
     assertNull(disc.getHiddenTrack());
@@ -330,9 +351,9 @@ class CueDiscTest extends CueTestBase {
     CueHiddenTrack hiddenTrack = disc.getHiddenTrack();
     assertEquals(new TimeCode(2, 4, 5).toDuration(), hiddenTrack.getDuration());
 
-    FileAndType fileAndType = hiddenTrack.getFileAndFormat();
-    assertEquals("file", fileAndType.getFile());
-    assertEquals("format", fileAndType.getType());
+    FileReference fileReference = hiddenTrack.getFileAndFormat();
+    assertEquals("file.aiff", fileReference.getFile());
+    assertEquals(FileType.Audio.AIFF, FileReference.detectTypeByExtension(fileReference.getFile()));
     assertEquals(actualTrack, hiddenTrack.getTrack());
     assertEquals(actualIndex0, hiddenTrack.getPreGapIndex());
     assertEquals(actualIndex1, disc.getHiddenTrack().getStartIndex());
@@ -341,7 +362,7 @@ class CueDiscTest extends CueTestBase {
   @Test
   void should_complain_on_hidden_track_without_followup_index() {
     CueDisc disc = new CueDisc();
-    disc.addFile(new CueFile("file", "format"))
+    disc.addFile(new CueFile("file", FileType.Audio.FLAC))
       .addTrack(new CueTrack(TrackType.AUDIO))
       .addIndex(new CueIndex(CueIndex.INDEX_PRE_GAP, TimeCode.ZERO_SECOND));
 
@@ -355,7 +376,7 @@ class CueDiscTest extends CueTestBase {
     CueIterator<CueFile> it1 = disc.iterator();
     assertFalse(it1.hasNext());
 
-    CueFile file = new CueFile("file", "format");
+    CueFile file = new CueFile("file", FileType.Audio.WAVE);
     disc.addFile(file);
     CueIterator<CueFile> it2 = disc.iterator();
     assertTrue(it2.hasNext());
@@ -367,8 +388,8 @@ class CueDiscTest extends CueTestBase {
     CueDisc disc = new CueDisc();
     assertEquals(0, disc.stream().count());
 
-    disc.addFile(new CueFile("file1", "format1"));
-    disc.addFile(new CueFile("file2", "format2"));
+    disc.addFile(new CueFile("file1", FileType.Audio.WAVE));
+    disc.addFile(new CueFile("file2", FileType.Audio.AIFF));
     assertEquals(2, disc.stream().count());
   }
 
@@ -377,7 +398,7 @@ class CueDiscTest extends CueTestBase {
     CueDisc disc = new CueDisc();
     CueTrack track = new CueTrack("type");
     track.setTitle("title");
-    disc.addFile(new CueFile("file", "format")).addTrack(track);
+    disc.addFile(new CueFile("file", FileType.Audio.MP3)).addTrack(track);
 
     assertEquals(1, disc.getTrackCount());
     assertThrows(IllegalArgumentException.class, () -> disc.removeTrack(2));
@@ -386,13 +407,13 @@ class CueDiscTest extends CueTestBase {
   @Test
   void should_remove_track() {
     CueDisc disc = new CueDisc();
-    CueFile file1 = disc.addFile(new CueFile("file1", "format1"));
+    CueFile file1 = disc.addFile(new CueFile("file1", FileType.Audio.WAVE));
     for(int i = 0; i < 10; i++) {
       CueTrack track = new CueTrack("type1");
       track.setTitle(String.format("title%02d", i+1));
       file1.addTrack(track);
     }
-    CueFile file2 = disc.addFile(new CueFile("file2", "format2"));
+    CueFile file2 = disc.addFile(new CueFile("file2", FileType.Audio.FLAC));
     for(int i = 10; i < 20; i++) {
       CueTrack track = new CueTrack("type2");
       track.setTitle(String.format("title%02d", i+1));

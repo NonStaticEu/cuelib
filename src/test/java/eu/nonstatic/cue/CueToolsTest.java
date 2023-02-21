@@ -90,11 +90,13 @@ class CueToolsTest {
 
   @Test
   void should_validate_track_range() {
-    Assertions.assertDoesNotThrow(() -> CueTools.validateTrackRange("track", 1, 10));
-    Assertions.assertDoesNotThrow(() -> CueTools.validateTrackRange("track", 8, 10));
-    Assertions.assertDoesNotThrow(() -> CueTools.validateTrackRange("track", 10, 10));
-    Assertions.assertThrows(IllegalArgumentException.class, () -> CueTools.validateTrackRange("track", 0, 10));
-    Assertions.assertThrows(IllegalArgumentException.class, () -> CueTools.validateTrackRange("track", 11, 10));
+    Assertions.assertDoesNotThrow(() -> CueTools.validateTrackRange("track", 1, 1, 10));
+    Assertions.assertDoesNotThrow(() -> CueTools.validateTrackRange("track", 8, 1, 10));
+    Assertions.assertDoesNotThrow(() -> CueTools.validateTrackRange("track", 10, 1, 10));
+    Assertions.assertDoesNotThrow(() -> CueTools.validateTrackRange("track", 2, 2, 10));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> CueTools.validateTrackRange("track", 0, 1, 10));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> CueTools.validateTrackRange("track", 11, 1, 10));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> CueTools.validateTrackRange("track", 3, 4, 10));
   }
 
   @Test

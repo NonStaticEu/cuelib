@@ -9,43 +9,131 @@
  */
 package eu.nonstatic.cue;
 
-import lombok.AllArgsConstructor;
+import static eu.nonstatic.cue.SizeAndDuration.getCompactDiscBytesFor;
+
+import java.time.Duration;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
-public class CueSheetOptions {
+@Getter
+public final class CueSheetOptions {
 
-  private boolean overwrite;
-  private boolean orderedTimeCodes;
-  private boolean noTrackAllowed;
+  /**
+   * Overwrites the existing target file if it exists
+   */
+  private final boolean overwrite;
+
+  /**
+   * Allows to have a cuesheet written with no track. But one can still have files with zero tracks.
+   */
+  private final boolean noTrackAllowed;
+
+  /**
+   * Should we write the complete file path or just its name
+   */
+  private final boolean fullPaths;
+
+  /**
+   * In theory it should be 4 seconds, that is 2 seconds of theoretical pregap + 2 seconds of audio
+   */
+  private final Duration minTrackDuration;
+
+  /**
+   * If set to false and your cuesheet actually ends up having tracks with a negative time,
+   * - a player might decide to play such a track until the end of the file, or not play it at all,
+   * - a burning software might just halt, or end up burning a zero duration track.
+   */
+  private final boolean orderedTimeCodes;
+
+  /**
+   * Max CD size in bytes
+   * Is like orderedTimeCodes + check the overall size/duration is < limit
+   * if burningCompliant is set, then burningLimit must be defined.
+   */
+  private final Long burningLimit;
 
 
-  public CueSheetOptions setOverwrite(boolean overwrite) {
+  private CueSheetOptions(boolean overwrite, boolean noTrackAllowed, boolean fullPaths, Duration minTrackDuration, boolean orderedTimeCodes, Long burningLimit) {
     this.overwrite = overwrite;
-    return this;
-  }
-
-  public CueSheetOptions setOrderedTimeCodes(boolean orderedTimeCodes) {
-    this.orderedTimeCodes = orderedTimeCodes;
-    return this;
-  }
-
-  public CueSheetOptions setNoTrackAllowed(boolean noTrackAllowed) {
     this.noTrackAllowed = noTrackAllowed;
-    return this;
+    this.fullPaths = fullPaths;
+    this.minTrackDuration = minTrackDuration;
+    this.orderedTimeCodes = orderedTimeCodes;
+    this.burningLimit = burningLimit;
   }
 
   /**
    * @return a new CueSheetOptions with overwrite=true, orderedTimeCodes=true, allowNoTrack=false
    */
   public static CueSheetOptions defaults() {
-    CueSheetOptions options = new CueSheetOptions();
-    options.setOverwrite(false);
-    options.setOrderedTimeCodes(true);
-    options.setNoTrackAllowed(false);
-    return options;
+    return CueSheetOptions.builder()
+        .overwrite(false)
+        .noTrackAllowed(false)
+        .fullPaths(false)
+        .burningCompliant(CueDisc.DURATION_80_MIN) // comprises minTrackDuration
+        .build();
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+
+
+  public static class Builder {
+    private boolean overwrite;
+    private boolean noTrackAllowed;
+    private boolean fullPaths;
+    private Duration minTrackDuration;
+    private boolean orderedTimeCodes;
+    private Long burningLimit;
+
+
+    public Builder overwrite(boolean overwrite) {
+      this.overwrite = overwrite;
+      return this;
+    }
+
+    public Builder noTrackAllowed(boolean noTrackAllowed) {
+      this.noTrackAllowed = noTrackAllowed;
+      return this;
+    }
+
+    public Builder fullPaths(boolean fullPaths) {
+      this.fullPaths = fullPaths;
+      return this;
+    }
+
+    public Builder minTrackDuration(Duration minTrackDuration) {
+      this.minTrackDuration = minTrackDuration;
+      return this;
+    }
+
+    public Builder orderedTimeCodes(boolean orderedTimeCodes) {
+      this.orderedTimeCodes = orderedTimeCodes;
+      return this;
+    }
+
+    public Builder burningLimit(Duration burningLimit) {
+      Long maxSize = (burningLimit != null) ? getCompactDiscBytesFor(burningLimit, TimeCodeRounding.DOWN) : null;
+      return burningLimit(maxSize);
+    }
+
+    public Builder burningLimit(Long burningLimit) {
+      this.burningLimit = burningLimit;
+      return this;
+    }
+
+    /**
+     * orderedTimeCodes + burningLimit
+     * not keeping minTrackDuration in 202x
+     */
+    public Builder burningCompliant(Duration burningLimit) {
+      return orderedTimeCodes(true)
+            .burningLimit(burningLimit);
+    }
+
+    public CueSheetOptions build() {
+      return new CueSheetOptions(overwrite, noTrackAllowed, fullPaths, minTrackDuration, orderedTimeCodes, burningLimit);
+    }
   }
 }
