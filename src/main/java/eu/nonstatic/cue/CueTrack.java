@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 public class CueTrack implements CueEntity, CueIterable<CueIndex> {
 
   private static final Pattern ISRC_PATTERN = Pattern.compile("([A-Z]{2})\\-?([A-Z0-9]{3})\\-?(\\d{2})\\-?(\\d{5})"); // dashes should be unnecessary but there's lots of cue oddities
+  public static final String ISRC_ZERO = "000000000000"; // placeholder used by some softwares when ISRC is unknown
 
   public static final String KEYWORD = CueWords.TRACK;
   public static final int TRACK_ONE = 1;
@@ -114,11 +115,15 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
   }
 
   public void setIsrc(String isrc) {
-    Matcher matcher = ISRC_PATTERN.matcher(isrc);
-    if (!matcher.matches()) {
-      throw new IllegalArgumentException("ISRC must use the CCOOOYYSSSSS format: https://en.wikipedia.org/wiki/International_Standard_Recording_Code");
+    if(isrc == null) {
+      this.isrc = null;
+    } else {
+      Matcher matcher = ISRC_PATTERN.matcher(isrc);
+      if (!matcher.matches()) {
+        throw new IllegalArgumentException("ISRC must use the CCOOOYYSSSSS format: https://en.wikipedia.org/wiki/International_Standard_Recording_Code");
+      }
+      this.isrc = matcher.group(1) + matcher.group(2) + matcher.group(3) + matcher.group(4);
     }
-    this.isrc = matcher.group(1) + matcher.group(2) + matcher.group(3) + matcher.group(4);
   }
 
 

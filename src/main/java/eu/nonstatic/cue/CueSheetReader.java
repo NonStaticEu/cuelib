@@ -306,7 +306,10 @@ public class CueSheetReader {
               track.setSongwriter(unquote(tail));
               break;
             case ISRC:
-              track.setIsrc(unquote(tail));
+              String isrc = unquote(tail);
+              if(!CueTrack.ISRC_ZERO.equals(isrc)) {
+                track.setIsrc(isrc);
+              }
               break;
             case PREGAP:
               track.setPreGap(TimeCode.parse(tail));

@@ -167,14 +167,20 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
 
 
   /**
-   * https://mutagen-specs.readthedocs.io/en/latest/id3/id3v2.4.0-structure.html http://www.datavoyage.com/mpgscript/mpeghdr.htm
-   * We're assuming there is no synch/alignment issue
+   * https://mutagen-specs.readthedocs.io/en/latest/id3/id3v2.4.0-structure.html
+   * http://www.datavoyage.com/mpgscript/mpeghdr.htm
+   * Lyrics custom tag: found some intel in the code: https://sourceforge.net/projects/mp3diags/
+   * Example: LYRICSBEGININD0000200ETT00040Jam & Spoon - Tripomatic Fairytales 2002CRC0000835FAE1F2000085LYRICS200
+   * https://en.wikipedia.org/wiki/APE_tag
+   * We're assuming there is no weird sync/alignment issue
    */
   public Mp3Info getInfos(InputStream is, String name) throws IOException {
     Mp3Info details = new Mp3Info();
     try (AudioInputStream wis = new AudioInputStream(is, name)) {
+      findData(wis);
       skipID3v2(wis);
 
+      findData(wis);
       FrameDetails frameDetails;
       while ((frameDetails = readFrame(wis)) != null) {
         details.appendFrame(frameDetails);
@@ -185,18 +191,28 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
         throw new IllegalArgumentException("Could not find a MP3 frame: " + name);
       }
 
-      if (wis.available() >= 3) {
-        String tag1 = wis.readString(3);
-        if (!"TAG".equals(tag1)) {
-          log.warn("File ran out of frames but no ID3v1 in the remaining bytes");
+      // just checking we reached the end of the file with sufficient certainty
+      if (wis.available() >= 8) {
+        String tag = wis.readString(8);
+        if(!tag.startsWith("TAG") // ID3v1 tag
+        && !tag.startsWith("LYRICSBE") // seems to be a LYRIGSBEGIN sequence with 3-char tags followed by 5-char sizes (in ascii!) and finishing in LYRICS200
+        && !tag.startsWith("APETAGEX")) {
+          log.warn("File {} ran out of frames but no ID3v1 or other custom tag in the remaining bytes", name);
         }
       }
 
     } catch (EOFException e) {
-      log.warn("End of file reached, incomplete frame");
+      log.warn("End of file reached, incomplete frame: {}", name);
       details.incomplete = true;
     }
     return details;
+  }
+
+  private void findData(AudioInputStream wis) throws IOException {
+    do {
+      wis.mark(1);
+    } while(wis.read() == 0x00);
+    wis.reset();
   }
 
 
@@ -204,7 +220,8 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     wis.mark(3);
     String tag2 = wis.readString(3);
     if ("ID3".equals(tag2)) {
-      short version = wis.read16bitBE();
+      int minorVersion = wis.read();
+      int revVersion = wis.read();
       int flags = wis.read();
       // byte length of the extended header, the padding and the frames after desynchronisation.
       // If a footer is present this equals to (‘total size’ - 20) bytes, otherwise (‘total size’ - 10) bytes.
@@ -283,7 +300,19 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
   }
 
   private int read32bitSynchSafe(AudioInputStream wis) throws IOException {
-    return (((wis.read() << 7 | wis.read()) << 7) | wis.read()) << 7 | wis.read();
+    return read32bitSynchSafeInt(wis.readNBytes(4));
+  }
+
+  private static int read32bitSynchSafeInt(byte[] bytes) {
+    return (((bytes[0] << 7 | bytes[1]) << 7) | bytes[2]) << 7 | bytes[3];
+  }
+
+  private static byte[] toSynchSafeBytes(int i) {
+    byte b0 = (byte)(i >> 21);
+    byte b1 = (byte)(i >> 14 & 0xFF);
+    byte b2 = (byte)(i >> 7 & 0xFF);
+    byte b3 = (byte)(i & 0xFF);
+    return new byte[]{b0, b1, b2, b3};
   }
 
   private static final class FrameDetails {
