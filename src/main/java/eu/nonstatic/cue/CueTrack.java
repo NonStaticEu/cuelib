@@ -15,7 +15,9 @@ import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Getter @Setter
 @EqualsAndHashCode
 public class CueTrack implements CueEntity, CueIterable<CueIndex> {
@@ -114,15 +116,27 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
     setTitle(title);
   }
 
+
   public void setIsrc(String isrc) {
-    if(isrc == null) {
+    setIsrc(isrc, false);
+  }
+
+  public void setIsrc(String isrc, boolean lenient) {
+    if(isrc == null || ISRC_ZERO.equals(isrc)) {
       this.isrc = null;
     } else {
       Matcher matcher = ISRC_PATTERN.matcher(isrc);
       if (!matcher.matches()) {
-        throw new IllegalArgumentException("ISRC must use the CCOOOYYSSSSS format: https://en.wikipedia.org/wiki/International_Standard_Recording_Code");
+        String message = "ISRC read: " + isrc + ". Must use the CCOOOYYSSSSS format: https://en.wikipedia.org/wiki/International_Standard_Recording_Code";
+        if(lenient) {
+          log.warn("Leniency over " + message);
+          this.isrc = isrc;
+        } else {
+          throw new IllegalArgumentException(message);
+        }
+      } else {
+        this.isrc = matcher.group(1) + matcher.group(2) + matcher.group(3) + matcher.group(4);
       }
-      this.isrc = matcher.group(1) + matcher.group(2) + matcher.group(3) + matcher.group(4);
     }
   }
 

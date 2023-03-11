@@ -12,17 +12,25 @@ package eu.nonstatic.cue;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 public class CueContext {
-  public static final TimeCodeRounding DEFAULT_ROUNDING = TimeCodeRounding.DOWN; //TODO should it become a first class citizen ?
+  public static final TimeCodeRounding DEFAULT_ROUNDING = TimeCodeRounding.DOWN;
 
   private final String path;
   private final Path parent;
   private final String name;
 
   private final Charset charset;
-  private final TimeCodeRounding rounding;
+
+  @Setter
+  private TimeCodeRounding rounding;
+  @Setter
+  private boolean timeCodeLeniency;
+  @Setter
+  private boolean isrcLeniency;
+
 
   public CueContext(String name, Charset charset) {
     this(name, null, name, charset, DEFAULT_ROUNDING);

@@ -57,4 +57,14 @@ class CueLine {
   public boolean isEmpty() {
     return raw.isEmpty();
   }
+
+  private boolean isComment() {
+    return raw.startsWith("#")
+        || raw.startsWith("//")
+        || raw.startsWith(";");
+  }
+
+  public boolean isSkippable() {
+    return isEmpty() || isComment();
+  }
 }

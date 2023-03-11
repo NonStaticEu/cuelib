@@ -4,10 +4,6 @@ Cue files were invented by Jeff Arnold for CDRWIN
 
 ## TODO
 * BOM, if any, should be used to detect encoding
-* support ; and // comments
-* Option to accept frames >= 75 and convert them back from hundredth of a second
-* Option to bypass bogus ISRC
-* Option to try and resync mp3
 
 ## Useful Docs
 https://en.wikipedia.org/wiki/Cue_sheet_(computing)  

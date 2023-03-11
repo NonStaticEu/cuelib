@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -180,27 +181,36 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
       findData(wis);
       skipID3v2(wis);
 
-      findData(wis);
-      FrameDetails frameDetails;
-      while ((frameDetails = readFrame(wis)) != null) {
-        details.appendFrame(frameDetails);
-      }
-      // we're assuming there is no sync issue and assuming we're at the end
+      boolean eof = false;
+      while(!eof) {
+        try {
+          FrameDetails frameDetails;
+          try {
+            while ((frameDetails = readFrame(wis)) != null) {
+              details.appendFrame(frameDetails);
+            }
+          } catch(MalformedFrameException e) {
+            log.warn("Frame seems malformed, will try to find another one");
+          }
 
-      if (details.isEmpty()) {
-        throw new IllegalArgumentException("Could not find a MP3 frame: " + name);
-      }
-
-      // just checking we reached the end of the file with sufficient certainty
-      if (wis.available() >= 8) {
-        String tag = wis.readString(8);
-        if(!tag.startsWith("TAG") // ID3v1 tag
-        && !tag.startsWith("LYRICSBE") // seems to be a LYRIGSBEGIN sequence with 3-char tags followed by 5-char sizes (in ascii!) and finishing in LYRICS200
-        && !tag.startsWith("APETAGEX")) {
-          log.warn("File {} ran out of frames but no ID3v1 or other custom tag in the remaining bytes", name);
+          if (isEndOfFileAhead(wis)) {
+            eof = true;
+          } else {
+            int skipped = resync(wis);
+            if(skipped >= 0) {
+              log.info("Managed to resync after skipping {} bytes", skipped);
+            } else {
+              eof = true;
+            }
+          }
+        } catch(BufferUnderflowException e) {
+          eof = true;
         }
       }
 
+      if (details.isEmpty()) {
+        throw new IllegalArgumentException("Could not find a single MP3 frame: " + name);
+      }
     } catch (EOFException e) {
       log.warn("End of file reached, incomplete frame: {}", name);
       details.incomplete = true;
@@ -234,17 +244,17 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     }
   }
 
-  private FrameDetails readFrame(AudioInputStream wis) throws IOException {
-    int header;
-
+  /**
+   * @param wis
+   * @return the frame details
+   * @throws IOException
+   * @throws BufferUnderflowException read32bitBE uses readNBytes
+   */
+  private FrameDetails readFrame(AudioInputStream wis) throws MalformedFrameException, IOException, BufferUnderflowException {
     wis.mark(4);
-    try {
-      header = wis.read32bitBE();
-      if (!isMp3Frame(header)) {
-        wis.reset();
-        return null;
-      }
-    } catch(BufferUnderflowException e) { // read32bitBE uses readNBytes
+    int header = wis.read32bitBE();
+    if (!isMp3Frame(header)) {
+      wis.reset();
       return null;
     }
 
@@ -256,19 +266,22 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     int samplingIndex = ((header >> 10) & 0x3);
     int padding = ((header >> 9) & 0x1);
     int channelIndex = ((header >> 6) & 0x3); // 00: Stereo, 01: Joint stereo (Stereo), 10: Dual channel (Stereo), 11: Single channel (Mono)
-    details.numChannels = MP3_MODE_CHANNEL_MAP.get(channelIndex);
+    details.numChannels = Optional.ofNullable(MP3_MODE_CHANNEL_MAP.get(channelIndex))
+        .orElseThrow(() -> new MalformedFrameException("Cannot compute channel number"));
 
     int bitRateKey = ((header >> 16) & 0x0E) | ((header >> 8) & 0xF0);
     Integer bitRate = MP3_BIT_RATE_MAP.get(bitRateKey);
     if (bitRate == null) { // free
       int bitRateIndex = ((header >> 12) & 0xF);
-      throw new IllegalArgumentException("Cannot handle bitrate for index " + Integer.toHexString(bitRateIndex));
+      throw new MalformedFrameException("Cannot handle bitrate for index " + Integer.toHexString(bitRateIndex));
     }
     details.bitRate = bitRate;
 
-    Integer sampleRate = MP3_SAMPLING_RATE_MAP.get(details.version).get(samplingIndex);
+    Integer sampleRate = Optional.ofNullable(MP3_SAMPLING_RATE_MAP.get(details.version))
+        .map(map -> map.get(samplingIndex))
+        .orElseThrow(() -> new MalformedFrameException("Cannot compute sampling rate"));
     if(sampleRate == null) {
-      throw new IllegalArgumentException("Cannot handle sampling for index " + Integer.toHexString(samplingIndex));
+      throw new MalformedFrameException("Cannot handle sampling for index " + Integer.toHexString(samplingIndex));
     }
     details.sampleRate = sampleRate;
 
@@ -284,7 +297,7 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
         details.sampleCount = LAYER_II_OR_III_SAMPLES_PER_FRAME;
         break;
       default:
-        throw new IllegalArgumentException("Layer 0x00");
+        throw new MalformedFrameException("Layer 0x00");
     }
 
     //No, we're not going to retry and get as much data as possible in case of an EOF
@@ -292,11 +305,36 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     return details;
   }
 
+  private int resync(AudioInputStream wis) throws IOException {
+    for(int skipped = 0; ; skipped++) {
+      wis.mark(4);
+      int header = wis.read32bitBE();
+      wis.reset();
+      if (isMp3Frame(header)) {
+        return skipped;
+      } else {
+        wis.skipNBytesBeforeJava12(1);
+      }
+    }
+  }
+
+
   /**
    * Checks if the bits 21-31 are set
    */
   private static boolean isMp3Frame(int header) {
     return (header & 0xFFE00000) == 0xFFE00000;
+  }
+
+  private static boolean isEndOfFileAhead(AudioInputStream wis) throws IOException {
+    if (wis.available() >= 8) {
+      String tag = wis.readString(8);
+      return tag.startsWith("TAG") // ID3v1 tag
+          || tag.startsWith("LYRICSBE") // seems to be a LYRIGSBEGIN sequence with 3-char tags followed by 5-char sizes (in ascii!) and finishing in LYRICS200
+          || tag.startsWith("APETAGEX");
+    } else {
+      return true;
+    }
   }
 
   private int read32bitSynchSafe(AudioInputStream wis) throws IOException {
@@ -345,6 +383,12 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
         duration += entry.getValue() / (double) entry.getKey();
       }
       return Duration.ofNanos(Math.round(duration * 1_000_000_000.0));
+    }
+  }
+
+  public static final class MalformedFrameException extends Exception {
+    public MalformedFrameException(String message) {
+      super(message);
     }
   }
 }

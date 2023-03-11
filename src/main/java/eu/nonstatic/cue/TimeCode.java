@@ -16,11 +16,14 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Comparator;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Immutable class
  */
+@Slf4j
 @Getter
 public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
@@ -41,19 +44,31 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
   private final int minutes;
   private final int seconds;
   private final int frames;
+  @Getter(AccessLevel.NONE)
+  private final int rawFrames; // == frames except when the sheet was mistakenly filled with 100th of a second instead of [0-74] frames, in which case the value is [0-99]
   private final TimeCodeRounding rounding;
 
 
   private TimeCode(int minutes, int seconds, int frames, TimeCodeRounding rounding) {
+    this(minutes, seconds, frames, frames, rounding);
+  }
+
+  private TimeCode(int minutes, int seconds, int frames, int rawFrames, TimeCodeRounding rounding) {
     validate(minutes, seconds, frames);
     this.minutes = minutes;
     this.seconds = seconds;
     this.frames = frames;
+    this.rawFrames = rawFrames;
     this.rounding = rounding;
   }
 
+  private TimeCode(int minutes, int seconds, int frames, int rawFrames) {
+    this(minutes, seconds, frames, rawFrames, DEFAULT_ROUNDING);
+  }
+
+
   public TimeCode(int minutes, int seconds, int frames) {
-    this(minutes, seconds, frames, DEFAULT_ROUNDING);
+    this(minutes, seconds, frames, frames, DEFAULT_ROUNDING);
   }
 
   /**
@@ -77,7 +92,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
   }
 
   public TimeCode(TimeCode timeCode) {
-    this(timeCode.minutes, timeCode.seconds, timeCode.frames, timeCode.rounding);
+    this(timeCode.minutes, timeCode.seconds, timeCode.frames, timeCode.rawFrames, timeCode.rounding);
   }
 
   public static TimeCode ofFrames(int frames) {
@@ -138,19 +153,22 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
   /**
    * @param timeCode mm:ss:ff (minutes:seconds:frames) format
-   * @param lenient allows 75 as a frame value
+   * @param lenient interpolates hundredths of a second identified with frame values in range [75-99] to actual frame value
    * @return
    */
   public static TimeCode parse(String timeCode, boolean lenient) {
     String[] parts = timeCode.split(":");
-    int minutes = parseInt(parts[0]); // figures may not be 0-padded
-    int seconds = parseInt(parts[1]);
-    int frames = parseInt(parts[2]);
+    int rawMinutes = parseInt(parts[0]); // figures may not be 0-padded
+    int rawSeconds = parseInt(parts[1]);
+    int rawFrames = parseInt(parts[2]);
 
-    if(lenient && frames >= FRAMES_PER_SECOND) { // seems someone used hundredths of a second instead of frames!
-      frames = (frames * FRAMES_PER_SECOND + FRAMES_PER_SECOND-1) / HUNDRED;
+    if(lenient && rawFrames >= FRAMES_PER_SECOND) { // seems someone used hundredths of a second instead of frames!
+      TimeCode result = new TimeCode(rawMinutes, rawSeconds, _100to75(rawFrames), rawFrames);
+      log.warn("Leniency over {} parsing, using {} as frame part", timeCode, result.frames);
+      return result;
+    } else {
+      return new TimeCode(rawMinutes, rawSeconds, rawFrames);
     }
-    return new TimeCode(minutes, seconds, frames);
   }
 
   public Duration until(TimeCode other) {
@@ -177,6 +195,25 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
   public TimeCode plus(long otherMillis) {
     return new TimeCode(toMillis() + otherMillis, rounding);
+  }
+
+  public static int _100to75(int hundredths) {
+    if (hundredths < 0 || hundredths >= HUNDRED) {
+      throw new IllegalArgumentException("hundredths must be in the [0-99] range");
+    }
+    return (hundredths * FRAMES_PER_SECOND + FRAMES_PER_SECOND - 1) / HUNDRED;
+  }
+
+  TimeCode _100to75() {
+    if(_is100to75()) {
+      return this;
+    } else {
+      return new TimeCode(minutes, seconds, _100to75(rawFrames), rawFrames);
+    }
+  }
+
+  boolean _is100to75() {
+    return frames != rawFrames;
   }
 
   @Override

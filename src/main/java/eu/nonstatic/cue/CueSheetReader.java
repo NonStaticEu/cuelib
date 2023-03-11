@@ -164,10 +164,19 @@ public class CueSheetReader {
 
     CueLine line;
     while((line = cueLineReader.readLine()) != null) {
-      if (!line.isEmpty()) {
+      if (!line.isSkippable()) {
         previousTrackNum = readCueSheetLine(cueLineReader, line, previousTrackNum, disc, context);
       }
     }
+
+    // if some timecodes were straightened, the odds are that all the timecodes' frames of the sheet were in hundredths of a second
+    if(context.isTimeCodeLeniency()
+        && disc.getIndexes().stream().anyMatch(index -> index.getTimeCode()._is100to75())) {
+      disc.getIndexes().stream()
+          .filter(index -> !index.getTimeCode()._is100to75())
+          .forEach(cueIndex -> cueIndex.setTimeCode(cueIndex.getTimeCode()._100to75()));
+    }
+
     return disc;
   }
 
@@ -247,7 +256,7 @@ public class CueSheetReader {
 
     CueLine line;
     while ((line = reader.readLine()) != null) {
-      if (!line.isEmpty()) {
+      if (!line.isSkippable()) {
         String keyword = line.getKeyword();
         if (keyword != null) {
           switch (keyword) {
@@ -283,7 +292,7 @@ public class CueSheetReader {
 
     CueLine line;
     while ((line = reader.readLine()) != null) {
-      if (!line.isEmpty()) {
+      if (!line.isSkippable()) {
         String keyword = line.getKeyword();
         if (keyword != null) {
           String tail = line.getTail();
@@ -294,7 +303,7 @@ public class CueSheetReader {
               reader.reset();
               return track;
             case CueIndex.KEYWORD:
-              track.addIndex(readIndex(line));
+              track.addIndex(readIndex(line, context));
               break;
             case TITLE:
               track.setTitle(unquote(tail));
@@ -307,15 +316,13 @@ public class CueSheetReader {
               break;
             case ISRC:
               String isrc = unquote(tail);
-              if(!CueTrack.ISRC_ZERO.equals(isrc)) {
-                track.setIsrc(isrc);
-              }
+              track.setIsrc(isrc, context.isIsrcLeniency());
               break;
             case PREGAP:
-              track.setPreGap(TimeCode.parse(tail));
+              track.setPreGap(TimeCode.parse(tail, context.isTimeCodeLeniency()));
               break;
             case POSTGAP:
-              track.setPostGap(TimeCode.parse(tail));
+              track.setPostGap(TimeCode.parse(tail, context.isTimeCodeLeniency()));
               break;
             case FLAGS:
               track.setFlags(readFlags(line));
@@ -341,9 +348,9 @@ public class CueSheetReader {
     return line.getTailParts().stream().map(CueFlag::flagOf).collect(toList());
   }
 
-  private static CueIndex readIndex(CueLine cueLine) {
+  private static CueIndex readIndex(CueLine cueLine, CueContext context) {
     int number = Integer.parseInt(cueLine.getTailWord(0));
     String timeCode = cueLine.getTailWord(1);
-    return new CueIndex(number, TimeCode.parse(timeCode));
+    return new CueIndex(number, TimeCode.parse(timeCode, context.isTimeCodeLeniency()));
   }
 }
