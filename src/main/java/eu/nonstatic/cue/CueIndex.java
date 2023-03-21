@@ -161,7 +161,7 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
   }
 
   @Override
-  public String toSheetLine(CueSheetOptions options) {
+  public String toSheetLine(CueWriteOptions options) {
     return String.format("%s %02d %s", KEYWORD, number, timeCode.toString());
   }
 

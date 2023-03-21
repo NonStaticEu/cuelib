@@ -25,24 +25,24 @@ public class FlacInfoSupplier implements AudioInfoSupplier<FlacInfo> {
    * https://xiph.org/flac/format.html#metadata_block_streaminfo
    */
   public FlacInfo getInfos(InputStream is, String name) throws IOException {
-    try (AudioInputStream wis = new AudioInputStream(is, name)) {
-      checkHeader(wis);
-      return readInfos(wis);
+    try (AudioInputStream ais = new AudioInputStream(is, name)) {
+      checkHeader(ais);
+      return readInfos(ais);
     }
   }
 
-  private void checkHeader(AudioInputStream wis) throws IOException, IllegalArgumentException {
-    if (!"fLaC".equals(wis.readString(4))) {
-      throw new IllegalArgumentException("Not a FLAC file: " + wis.name);
+  private void checkHeader(AudioInputStream ais) throws IOException, IllegalArgumentException {
+    if (!"fLaC".equals(ais.readString(4))) {
+      throw new IllegalArgumentException("Not a FLAC file: " + ais.name);
     }
   }
 
-  private FlacInfo readInfos(AudioInputStream wis) throws IOException {
-    int blockType = wis.read() & 0x7;
+  private FlacInfo readInfos(AudioInputStream ais) throws IOException {
+    int blockType = ais.read() & 0x7;
     if (blockType == STREAMINFO_BLOCK_TYPE) {
-      wis.skipNBytesBeforeJava12(3); // length
-      wis.skipNBytesBeforeJava12(10);
-      long samplingInfo = wis.read64bitBE();
+      ais.skipNBytesBeforeJava12(3); // length
+      ais.skipNBytesBeforeJava12(10);
+      long samplingInfo = ais.read64bitBE();
 
       int samplingRate = (int) (samplingInfo >> 44);
       int numChannels = (((int) (samplingInfo >> 41)) & 0x7) + 1;
@@ -56,7 +56,7 @@ public class FlacInfoSupplier implements AudioInfoSupplier<FlacInfo> {
           .numFrames(totalSamples)
           .build();
     } else {
-      throw new IllegalArgumentException("STREAMINFO block not found: " + wis.name);
+      throw new IllegalArgumentException("STREAMINFO block not found: " + ais.name);
     }
   }
 

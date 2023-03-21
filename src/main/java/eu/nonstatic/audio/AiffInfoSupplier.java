@@ -23,40 +23,40 @@ public class AiffInfoSupplier implements AudioInfoSupplier<AiffInfo> {
    * https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/AIFF/Docs/AIFF-1.3.pdf
    */
   public AiffInfo getInfos(InputStream is, String name) throws IOException {
-    try (AudioInputStream wis = new AudioInputStream(is, name)) {
-      checkHeader(wis);
-      return readInfos(wis);
+    try (AudioInputStream ais = new AudioInputStream(is, name)) {
+      checkHeader(ais);
+      return readInfos(ais);
     }
   }
 
-  private void checkHeader(AudioInputStream wis) throws IOException, IllegalArgumentException {
-    if (!"FORM".equals(wis.readString(4))) {
-      throw new IllegalArgumentException("Not an AIFF file: " + wis.name);
+  private void checkHeader(AudioInputStream ais) throws IOException, IllegalArgumentException {
+    if (!"FORM".equals(ais.readString(4))) {
+      throw new IllegalArgumentException("Not an AIFF file: " + ais.name);
     }
-    wis.read32bitBE(); // total size
-    if (!"AIFF".equals(wis.readString(4))) {
-      throw new IllegalArgumentException("No AIFF id in: " + wis.name);
+    ais.read32bitBE(); // total size
+    if (!"AIFF".equals(ais.readString(4))) {
+      throw new IllegalArgumentException("No AIFF id in: " + ais.name);
     }
   }
 
-  private AiffInfo readInfos(AudioInputStream wis) throws IOException {
-    findChunk(wis, "COMM");
+  private AiffInfo readInfos(AudioInputStream ais) throws IOException {
+    findChunk(ais, "COMM");
     return AiffInfo.builder()
-        .numChannels(wis.read16bitBE())
-        .numFrames(wis.read32bitBE())
-        .frameSize(wis.read16bitBE())
-        .frameRate(wis.readExtendedFloatBE())
+        .numChannels(ais.read16bitBE())
+        .numFrames(ais.read32bitBE())
+        .frameSize(ais.read16bitBE())
+        .frameRate(ais.readExtendedFloatBE())
         .build();
   }
 
-  private void findChunk(AudioInputStream wis, String name) throws IOException {
+  private void findChunk(AudioInputStream ais, String name) throws IOException {
     while (true) {
-      String ckName = wis.readString(4);
-      int ckSize = wis.read32bitBE();
+      String ckName = ais.readString(4);
+      int ckSize = ais.read32bitBE();
       if (name.equals(ckName)) {
         break;
       } else {
-        wis.skipNBytesBeforeJava12(ckSize);
+        ais.skipNBytesBeforeJava12(ckSize);
       }
     }
   }

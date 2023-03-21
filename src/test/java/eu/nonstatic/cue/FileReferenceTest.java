@@ -25,7 +25,12 @@ import org.junit.jupiter.api.Test;
 class FileReferenceTest extends CueTestBase {
 
   static final String tempDir = System.getProperty("java.io.tmpdir");
-  static final CueContext context = new CueContext(Paths.get(tempDir).resolve("testcue.cue"), StandardCharsets.UTF_8);
+  static final CueReadContext context;
+
+  static {
+    CueReadOptions options = new CueReadOptions(StandardCharsets.UTF_8);
+    context = new CueReadContext(Paths.get(tempDir).resolve("testcue.cue"), options);
+  }
 
   @Test
   void should_parse_compliant_quoted() throws IOException {
@@ -68,7 +73,7 @@ class FileReferenceTest extends CueTestBase {
 
   @Test
   void should_parse_not_compliant() {
-    FileReference fileReference = FileReference.parse("\"my file.mp3\"", new CueContext("my file.cue", null));
+    FileReference fileReference = FileReference.parse("\"my file.mp3\"", new CueReadContext("my file.cue", null));
     assertEquals("my file.mp3", fileReference.file);
     assertEquals(Audio.MP3, fileReference.type);
   }

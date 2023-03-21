@@ -9,9 +9,16 @@
  */
 package eu.nonstatic.cue;
 
-import eu.nonstatic.cue.FileType.Audio;
-import org.junit.jupiter.api.Test;
+import static eu.nonstatic.cue.CueDisc.DURATION_LEAD_IN;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.nonstatic.cue.FileType.Audio;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -24,18 +31,16 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
+import org.junit.jupiter.api.Test;
 
-import static eu.nonstatic.cue.CueDisc.DURATION_LEAD_IN;
-import static org.junit.jupiter.api.Assertions.*;
-
-class CueWriterTest extends CueTestBase {
+class CueSheetWriterTest extends CueTestBase {
 
   static URL myTestUrlExpected = CueDiscTest.class.getResource("/My Test expected.cue"); // UTF-8 encoded
 
   @Test
   void should_not_write_cuesheet() {
     Path anyPath = Paths.get("/tmp/whatever");
-    CueSheetOptions options = CueSheetOptions.builder().build();
+    CueWriteOptions options = CueWriteOptions.builder().build();
     assertThrows(NullPointerException.class, () -> CueSheetWriter.writeCueSheet(null, anyPath, options));
     CueDisc anyDisc = new CueDisc();
     assertThrows(NullPointerException.class, () -> CueSheetWriter.writeCueSheet(anyDisc, (Path)null, options));
@@ -44,12 +49,12 @@ class CueWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_to_file() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
 
     File tempFile = File.createTempFile("cue", null);
     tempFile.delete();
 
-    CueSheetWriter.writeCueSheet(disc, tempFile, CueSheetOptions.builder().build());
+    CueSheetWriter.writeCueSheet(disc, tempFile, CueWriteOptions.builder().build());
     assertFileContents(myTestUrlExpected, tempFile, cs);
     tempFile.delete();
   }
@@ -57,26 +62,28 @@ class CueWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_to_path() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
 
     Path tempFile = Files.createTempFile(null, null);
     Files.deleteIfExists(tempFile);
 
-    CueSheetWriter.writeCueSheet(disc, tempFile, CueSheetOptions.builder().build());
+    CueSheetWriter.writeCueSheet(disc, tempFile, CueWriteOptions.builder().build());
     assertFileContents(myTestUrlExpected, tempFile.toFile(), cs);
     Files.deleteIfExists(tempFile);
   }
 
   @Test
   void should_write_cuesheet_to_file_other_charset() throws IOException {
+    CueSheetReader cueSheetReader = new CueSheetReader();
+
     Charset inputCharset = StandardCharsets.UTF_8, outputCharset = StandardCharsets.ISO_8859_1;
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, inputCharset);
+    CueDisc disc = cueSheetReader.readCueSheet(myTestUrl, inputCharset);
 
     disc.setCharset(outputCharset);
     File tempFile = File.createTempFile("cue", null);
-    CueSheetWriter.writeCueSheet(disc, tempFile, CueSheetOptions.builder().overwrite(true).build());
+    CueSheetWriter.writeCueSheet(disc, tempFile, CueWriteOptions.builder().overwrite(true).build());
 
-    assertEquals(outputCharset, new CueSheetReader().detectEncoding(tempFile).getCharset());
+    assertEquals(outputCharset, cueSheetReader.detectEncoding(tempFile));
     assertFileContents(myTestUrlExpected, tempFile, outputCharset);
     tempFile.delete();
   }
@@ -84,9 +91,9 @@ class CueWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_to_file_overwrite() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
     File tempFile = File.createTempFile("cue", null);
-    CueSheetWriter.writeCueSheet(disc, tempFile, CueSheetOptions.builder().overwrite(true).build());
+    CueSheetWriter.writeCueSheet(disc, tempFile, CueWriteOptions.builder().overwrite(true).build());
     assertFileContents(myTestUrlExpected, tempFile, cs);
     tempFile.delete();
   }
@@ -95,10 +102,10 @@ class CueWriterTest extends CueTestBase {
   void should_not_write_cuesheet_to_existing_file() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
 
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
     File tempFile = File.createTempFile("cue", null);
 
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(false).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(false).build();
     assertThrows(FileAlreadyExistsException.class, () -> CueSheetWriter.writeCueSheet(disc, tempFile, options));
     assertThrows(FileAlreadyExistsException.class, () -> CueSheetWriter.writeCueSheet(disc, tempFile.toPath(), options));
     tempFile.delete();
@@ -128,7 +135,7 @@ class CueWriterTest extends CueTestBase {
 
     disc.setFirstTrackNumber(97);
 
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).build();
     Path tempFile = Files.createTempFile(null, null);
     IllegalStateException ex = assertThrows(IllegalStateException.class, () -> CueSheetWriter.writeCueSheet(disc, tempFile, options));
     assertEquals("Track max 100 is out of range [1,99]", ex.getSuppressed()[0].getMessage());
@@ -139,7 +146,7 @@ class CueWriterTest extends CueTestBase {
   void should_write_cuesheet_no_file() throws IOException {
     CueDisc disc = new CueDisc();
     disc.addRemark(CueRemark.commentOf("hello world"));
-    CueSheetOptions options = CueSheetOptions.builder().noTrackAllowed(true).overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().noTrackAllowed(true).overwrite(true).build();
 
     Path tempFile = Files.createTempFile(null, null);
     CueSheetWriter.writeCueSheet(disc, tempFile, options);
@@ -152,7 +159,7 @@ class CueWriterTest extends CueTestBase {
   void should_not_write_cuesheet_no_file() throws IOException {
     CueDisc disc = new CueDisc();
     disc.addRemark(CueRemark.commentOf("hello world"));
-    CueSheetOptions options = CueSheetOptions.builder().noTrackAllowed(false).overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().noTrackAllowed(false).overwrite(true).build();
 
     Path tempFile = Files.createTempFile(null, null);
     IllegalStateException ex = assertThrows(IllegalStateException.class, () -> CueSheetWriter.writeCueSheet(disc, tempFile, options));
@@ -167,7 +174,7 @@ class CueWriterTest extends CueTestBase {
     disc.addFile(new CueFile("path", FileType.Audio.WAVE));
 
     Path tempFile = Files.createTempFile(null, null);
-    CueSheetOptions options = CueSheetOptions.builder().noTrackAllowed(true).overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().noTrackAllowed(true).overwrite(true).build();
     CueSheetWriter.writeCueSheet(disc, tempFile, options);
 
     assertEquals(1, Files.readAllLines(tempFile).size());
@@ -180,7 +187,7 @@ class CueWriterTest extends CueTestBase {
     disc.addFile(new CueFile("path", FileType.Audio.WAVE));
 
     Path tempFile = Files.createTempFile(null, null);
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).build();
     IllegalStateException ex = assertThrows(IllegalStateException.class, () -> CueSheetWriter.writeCueSheet(disc, tempFile, options));
     assertEquals("Tracks count 0 is out of range [1,99]", ex.getSuppressed()[0].getMessage());
     Files.deleteIfExists(tempFile);
@@ -201,7 +208,7 @@ class CueWriterTest extends CueTestBase {
     track4.setPreGap(TimeCode.ONE_SECOND);
 
     Path tempFile = Files.createTempFile(null, null);
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).minTrackDuration(CueTrack.DURATION_MIN).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).minTrackDuration(CueTrack.DURATION_MIN).build();
     IllegalStateException ex = assertThrows(IllegalStateException.class, () -> CueSheetWriter.writeCueSheet(disc, tempFile, options));
     assertEquals(2, ex.getSuppressed().length);
     assertEquals("Track 2 duration PT1S is below PT4S", ex.getSuppressed()[0].getMessage());
@@ -211,7 +218,7 @@ class CueWriterTest extends CueTestBase {
 
   @Test
   void should_not_write_cuesheet_when_two_pregaps() throws IOException {
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).build();
 
     Path tempFile = Files.createTempFile(null, null);
 
@@ -227,7 +234,7 @@ class CueWriterTest extends CueTestBase {
 
   @Test
   void should_not_write_cuesheet_when_first_index_not_00_00_00() throws IOException {
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc1 = new CueDisc();
@@ -249,7 +256,7 @@ class CueWriterTest extends CueTestBase {
 
   @Test
   void should_not_write_cuesheet_when_more_than_99_tracks() throws IOException {
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc = new CueDisc();
@@ -268,7 +275,7 @@ class CueWriterTest extends CueTestBase {
 
   @Test
   void should_not_write_cuesheet_when_more_than_99_indexes() throws IOException {
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc = new CueDisc();
@@ -292,7 +299,7 @@ class CueWriterTest extends CueTestBase {
 
   @Test
   void should_not_write_cuesheet_without_index_01() throws IOException {
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc = new CueDisc();
@@ -308,7 +315,7 @@ class CueWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_when_data_fits_no_gaps() throws IOException {
     Duration maxDuration = Duration.ofMinutes(74);
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).burningLimit(maxDuration).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).burningLimit(maxDuration).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc = new CueDisc();
@@ -325,7 +332,7 @@ class CueWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_when_data_fits_even_with_gaps() throws IOException {
     Duration maxDuration = Duration.ofMinutes(74);
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).burningLimit(maxDuration).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).burningLimit(maxDuration).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc = new CueDisc();
@@ -355,7 +362,7 @@ class CueWriterTest extends CueTestBase {
   @Test
   void should_not_write_cuesheet_when_data_fits_but_pre_post_gaps_make_it_exceed() throws IOException {
     Duration maxDuration = Duration.ofMinutes(74);
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).burningLimit(maxDuration).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).burningLimit(maxDuration).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc = new CueDisc();
@@ -373,7 +380,7 @@ class CueWriterTest extends CueTestBase {
 
   @Test
   void should_not_write_cuesheet_when_too_much_data() throws IOException {
-    CueSheetOptions options = CueSheetOptions.builder().overwrite(true).burningLimit(Duration.ofMinutes(74)).build();
+    CueWriteOptions options = CueWriteOptions.builder().overwrite(true).burningLimit(Duration.ofMinutes(74)).build();
     Path tempFile = Files.createTempFile(null, null);
 
     CueDisc disc = new CueDisc();
@@ -399,11 +406,11 @@ class CueWriterTest extends CueTestBase {
 
     // accepted when ignoring chaining
     assertEquals(3, disc.getTrackCount());
-    CueSheetOptions optionsWithoutOrderedTimeCodes = CueSheetOptions.builder().orderedTimeCodes(false).overwrite(true).build();
+    CueWriteOptions optionsWithoutOrderedTimeCodes = CueWriteOptions.builder().orderedTimeCodes(false).overwrite(true).build();
     assertDoesNotThrow(() -> CueSheetWriter.writeCueSheet(disc, tempFile, optionsWithoutOrderedTimeCodes));
 
     // not accepted when enforcing chaining
-    CueSheetOptions optionsWithOrderedTimeCodes = CueSheetOptions.builder().orderedTimeCodes(true).overwrite(true).build();
+    CueWriteOptions optionsWithOrderedTimeCodes = CueWriteOptions.builder().orderedTimeCodes(true).overwrite(true).build();
     IllegalStateException ex1 = assertThrows(IllegalStateException.class, () -> CueSheetWriter.writeCueSheet(disc, tempFile, optionsWithOrderedTimeCodes));
     assertEquals("Track 3 index 1 timecode 00:01:00 is before its predecessor 00:02:00", ex1.getSuppressed()[0].getMessage());
 

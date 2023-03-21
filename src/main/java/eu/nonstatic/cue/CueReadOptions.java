@@ -10,40 +10,34 @@
 package eu.nonstatic.cue;
 
 import java.nio.charset.Charset;
-import java.nio.file.Path;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
-@Getter
-public class CueContext {
+@Slf4j
+@Getter @Builder
+@AllArgsConstructor
+public class CueReadOptions {
   public static final TimeCodeRounding DEFAULT_ROUNDING = TimeCodeRounding.DOWN;
 
-  private final String path;
-  private final Path parent;
-  private final String name;
+  @Setter(AccessLevel.PACKAGE)
+  private Charset charset;
+  @NonNull @Builder.Default
+  private TimeCodeRounding rounding = DEFAULT_ROUNDING;
 
-  private final Charset charset;
-
-  @Setter
-  private TimeCodeRounding rounding;
-  @Setter
   private boolean timeCodeLeniency;
-  @Setter
   private boolean isrcLeniency;
+  private boolean fileLeniency;
 
-
-  public CueContext(String name, Charset charset) {
-    this(name, null, name, charset, DEFAULT_ROUNDING);
+  public CueReadOptions(Charset charset) {
+    this(charset, DEFAULT_ROUNDING);
   }
 
-  public CueContext(Path cueFile, Charset charset) {
-    this(cueFile.toString(), cueFile.getParent(), cueFile.getFileName().toString(), charset, DEFAULT_ROUNDING);
-  }
-
-  private CueContext(String path, Path parent, String name, Charset charset, TimeCodeRounding rounding) {
-    this.path = path;
-    this.parent = parent;
-    this.name = name;
+  public CueReadOptions(Charset charset, TimeCodeRounding rounding) {
     this.charset = charset;
     this.rounding = rounding;
   }

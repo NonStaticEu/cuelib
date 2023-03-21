@@ -13,11 +13,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class CueSheetOptionsTest {
+class CueWriteOptionsTest {
 
     @Test
     void should_create_defaults() {
-        CueSheetOptions defaults = CueSheetOptions.defaults();
+        CueWriteOptions defaults = CueWriteOptions.defaults();
         assertFalse(defaults.isOverwrite());
         assertFalse(defaults.isNoTrackAllowed());
         assertFalse(defaults.isFullPaths());

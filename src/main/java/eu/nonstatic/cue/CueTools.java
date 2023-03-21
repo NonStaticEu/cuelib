@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class CueTools {
 
-  static final int MAX_CDTEXT_FIELD_LENGTH = 160; // CD-text block space is shared between tracks/fields, so there's no real limit, but let's say 160 is enough.
+  public static final int MAX_CDTEXT_FIELD_LENGTH = 160; // CD-text block space is shared between tracks/fields, so there's no real limit, but let's say 160 is enough.
 
   private CueTools() {}
 

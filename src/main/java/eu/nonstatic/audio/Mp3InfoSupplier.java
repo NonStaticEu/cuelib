@@ -170,6 +170,7 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
   /**
    * https://mutagen-specs.readthedocs.io/en/latest/id3/id3v2.4.0-structure.html
    * http://www.datavoyage.com/mpgscript/mpeghdr.htm
+   * https://phoxis.org/2010/05/08/synch-safe/
    * Lyrics custom tag: found some intel in the code: https://sourceforge.net/projects/mp3diags/
    * Example: LYRICSBEGININD0000200ETT00040Jam & Spoon - Tripomatic Fairytales 2002CRC0000835FAE1F2000085LYRICS200
    * https://en.wikipedia.org/wiki/APE_tag
@@ -177,36 +178,11 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
    */
   public Mp3Info getInfos(InputStream is, String name) throws IOException {
     Mp3Info details = new Mp3Info();
-    try (AudioInputStream wis = new AudioInputStream(is, name)) {
-      findData(wis);
-      skipID3v2(wis);
+    try (AudioInputStream ais = new AudioInputStream(is, name)) {
+      findData(ais);
+      skipID3v2(ais);
 
-      boolean eof = false;
-      while(!eof) {
-        try {
-          FrameDetails frameDetails;
-          try {
-            while ((frameDetails = readFrame(wis)) != null) {
-              details.appendFrame(frameDetails);
-            }
-          } catch(MalformedFrameException e) {
-            log.warn("Frame seems malformed, will try to find another one");
-          }
-
-          if (isEndOfFileAhead(wis)) {
-            eof = true;
-          } else {
-            int skipped = resync(wis);
-            if(skipped >= 0) {
-              log.info("Managed to resync after skipping {} bytes", skipped);
-            } else {
-              eof = true;
-            }
-          }
-        } catch(BufferUnderflowException e) {
-          eof = true;
-        }
-      }
+      while(!readFramesWithResync(ais, details));
 
       if (details.isEmpty()) {
         throw new IllegalArgumentException("Could not find a single MP3 frame: " + name);
@@ -218,43 +194,77 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     return details;
   }
 
-  private void findData(AudioInputStream wis) throws IOException {
+  private void findData(AudioInputStream ais) throws IOException {
     do {
-      wis.mark(1);
-    } while(wis.read() == 0x00);
-    wis.reset();
+      ais.mark(1);
+    } while(ais.read() == 0x00);
+    ais.reset();
   }
 
 
-  private void skipID3v2(AudioInputStream wis) throws IOException {
-    wis.mark(3);
-    String tag2 = wis.readString(3);
+  private void skipID3v2(AudioInputStream ais) throws IOException {
+    ais.mark(3);
+    String tag2 = ais.readString(3);
     if ("ID3".equals(tag2)) {
-      int minorVersion = wis.read();
-      int revVersion = wis.read();
-      int flags = wis.read();
+      int minorVersion = ais.read();
+      int revVersion = ais.read();
+      int flags = ais.read();
       // byte length of the extended header, the padding and the frames after desynchronisation.
       // If a footer is present this equals to (‘total size’ - 20) bytes, otherwise (‘total size’ - 10) bytes.
-      int size = read32bitSynchSafe(wis);
+      int size = read32bitSynchSafe(ais);
       boolean extended = (flags & 0x2) != 0;
       boolean footer = (flags & 0x8) != 0;
-      wis.skipNBytesBeforeJava12((long)size + (footer ? 10 : 0));
+      ais.skipNBytesBeforeJava12((long)size + (footer ? 10 : 0));
     } else { // no ID3v2
-      wis.reset();
+      ais.reset();
+    }
+  }
+
+  private boolean readFramesWithResync(AudioInputStream ais, Mp3Info details) throws IOException {
+    boolean stop = false;
+
+    try {
+      readFrames(ais, details);
+
+      if (isEndOfFileAhead(ais)) {
+        stop = true;
+      } else {
+        int skipped = resync(ais);
+        if(skipped >= 0) {
+          log.info("Managed to resync after skipping {} bytes", skipped);
+        } else {
+          stop = true;
+        }
+      }
+    } catch(BufferUnderflowException e) {
+      stop = true;
+    }
+
+    return stop;
+  }
+
+  private void readFrames(AudioInputStream ais, Mp3Info details) throws IOException {
+    try {
+      FrameDetails frameDetails;
+      while ((frameDetails = readFrame(ais)) != null) {
+        details.appendFrame(frameDetails);
+      }
+    } catch(MalformedFrameException e) {
+      log.warn("Frame seems malformed, will try to find another one");
     }
   }
 
   /**
-   * @param wis
-   * @return the frame details
+   * @param ais
+   * @return the frame details or null if what's read looks like no frame
    * @throws IOException
    * @throws BufferUnderflowException read32bitBE uses readNBytes
    */
-  private FrameDetails readFrame(AudioInputStream wis) throws MalformedFrameException, IOException, BufferUnderflowException {
-    wis.mark(4);
-    int header = wis.read32bitBE();
+  private FrameDetails readFrame(AudioInputStream ais) throws MalformedFrameException, IOException, BufferUnderflowException {
+    ais.mark(4);
+    int header = ais.read32bitBE();
     if (!isMp3Frame(header)) {
-      wis.reset();
+      ais.reset();
       return null;
     }
 
@@ -301,19 +311,19 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     }
 
     //No, we're not going to retry and get as much data as possible in case of an EOF
-    wis.skipNBytesBeforeJava12((long)frameLength - 4); // 4 is the header we've already read
+    ais.skipNBytesBeforeJava12((long)frameLength - 4); // 4 is the header we've already read
     return details;
   }
 
-  private int resync(AudioInputStream wis) throws IOException {
+  private int resync(AudioInputStream ais) throws IOException {
     for(int skipped = 0; ; skipped++) {
-      wis.mark(4);
-      int header = wis.read32bitBE();
-      wis.reset();
+      ais.mark(4);
+      int header = ais.read32bitBE();
+      ais.reset();
       if (isMp3Frame(header)) {
         return skipped;
       } else {
-        wis.skipNBytesBeforeJava12(1);
+        ais.skipNBytesBeforeJava12(1);
       }
     }
   }
@@ -326,9 +336,9 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     return (header & 0xFFE00000) == 0xFFE00000;
   }
 
-  private static boolean isEndOfFileAhead(AudioInputStream wis) throws IOException {
-    if (wis.available() >= 8) {
-      String tag = wis.readString(8);
+  private static boolean isEndOfFileAhead(AudioInputStream ais) throws IOException {
+    if (ais.available() >= 8) {
+      String tag = ais.readString(8);
       return tag.startsWith("TAG") // ID3v1 tag
           || tag.startsWith("LYRICSBE") // seems to be a LYRIGSBEGIN sequence with 3-char tags followed by 5-char sizes (in ascii!) and finishing in LYRICS200
           || tag.startsWith("APETAGEX");
@@ -337,8 +347,8 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
     }
   }
 
-  private int read32bitSynchSafe(AudioInputStream wis) throws IOException {
-    return read32bitSynchSafeInt(wis.readNBytes(4));
+  private int read32bitSynchSafe(AudioInputStream ais) throws IOException {
+    return read32bitSynchSafeInt(ais.readNBytes(4));
   }
 
   private static int read32bitSynchSafeInt(byte[] bytes) {
@@ -347,9 +357,9 @@ public class Mp3InfoSupplier implements AudioInfoSupplier<Mp3Info> {
 
   private static byte[] toSynchSafeBytes(int i) {
     byte b0 = (byte)(i >> 21);
-    byte b1 = (byte)(i >> 14 & 0xFF);
-    byte b2 = (byte)(i >> 7 & 0xFF);
-    byte b3 = (byte)(i & 0xFF);
+    byte b1 = (byte)(i >> 14 & 0xff);
+    byte b2 = (byte)(i >> 7 & 0xff);
+    byte b3 = (byte)(i & 0xff);
     return new byte[]{b0, b1, b2, b3};
   }
 

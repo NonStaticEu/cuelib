@@ -13,6 +13,7 @@ import static eu.nonstatic.cue.CueTools.getExt;
 import static eu.nonstatic.cue.CueTools.unquote;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -69,7 +70,7 @@ class FileReference implements FileReferable {
   }
 
   public FileReference(Path file, TimeCodeRounding rounding) {
-    this(file, detectTypeByExtension(file.getFileName().toString()), rounding);
+    this(file, detectTypeByExtension(file.getFileName().toString()), rounding, false);
   }
 
   /**
@@ -77,16 +78,22 @@ class FileReference implements FileReferable {
    * @param type only Data subtype allowed for explicit assignment, else audio type will have to be detected
    */
   public FileReference(Path file, FileType.Data type) {
-    this(file, type, null);
+    this(file, type, null, false);
   }
 
   /**
    * Private because unsafe wrt type
    */
   @SneakyThrows
-  private FileReference(Path file, FileType type, TimeCodeRounding rounding) {
+  private FileReference(Path file, FileType type, TimeCodeRounding rounding, boolean fileLeniency) {
     this(file.toString(), type);
-    this.sizeDuration = new SizeAndDuration(file, rounding, type.isData());
+    try {
+      this.sizeDuration = new SizeAndDuration(file, rounding, type.isData());
+    } catch (IOException e) {
+      if(!fileLeniency) {
+        throw e;
+      }
+    }
   }
 
   public static FileType detectTypeByExtension(String fileName) {
@@ -104,7 +111,7 @@ class FileReference implements FileReferable {
    * @param context
    * @return
    */
-  static FileReference parse(@NonNull String fileAndFormat, CueContext context) {
+  static FileReference parse(@NonNull String fileAndFormat, CueReadContext context) {
     String fileName;
     FileType fileType;
     int sep = fileAndFormat.lastIndexOf(' ');
@@ -123,7 +130,7 @@ class FileReference implements FileReferable {
   }
 
   @SneakyThrows
-  private static FileReference fromParentDir(String fileOrFileName, FileType fileType, CueContext context) {
+  private static FileReference fromParentDir(String fileOrFileName, FileType fileType, CueReadContext context) {
     Path dir = context.getParent();
     if(dir == null ) { // let's set what we can
       return new FileReference(fileOrFileName, fileType);
@@ -133,6 +140,8 @@ class FileReference implements FileReferable {
     if(filePath.getNameCount() == 1) { // just a file name
       filePath = dir.resolve(fileOrFileName);
     }
-    return new FileReference(filePath, fileType, context.getRounding());
+
+    CueReadOptions options = context.getOptions();
+    return new FileReference(filePath, fileType, options.getRounding(), options.isFileLeniency());
   }
 }

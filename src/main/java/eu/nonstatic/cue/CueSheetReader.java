@@ -28,6 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -35,18 +36,28 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class CueSheetReader {
+public final class CueSheetReader {
 
   public static final String CUE_EXTENSION = "cue";
-  public static final Charset DEFAULT_CHARSET = StandardCharsets.ISO_8859_1;
   private static final int DEFAULT_CONFIDENCE = 30;
+  public static final Charset DEFAULT_CHARSET = StandardCharsets.ISO_8859_1;
 
-  private static final String MESSAGE_NO_KEYWORD = "{}#{}: No keyword on line: {}";
-  protected static final String MESSAGE_NOT_CUE = "Not a cue file: ";
+  private static final String MESSAGE_NO_KEYWORD = "%s#%s: No keyword on line: %s";
+  static final String MESSAGE_NOT_CUE = "Not a cue file: ";
+
+  private static final Map<byte[], Charset> BOM_TO_CHARSET = Map.of(
+      Bom.BOM_UTF_8, StandardCharsets.UTF_8,
+      Bom.BOM_UTF_16_LE, StandardCharsets.UTF_16LE,
+      Bom.BOM_UTF_16_BE, StandardCharsets.UTF_16BE,
+      Bom.BOM_UTF_32_LE, Charset.forName("UTF-32LE"),
+      Bom.BOM_UTF_32_BE, Charset.forName("UTF-32BE")
+  );
+
 
   private final int confidence;
   private final Charset fallbackCharset;
@@ -60,106 +71,92 @@ public class CueSheetReader {
     this.fallbackCharset = fallbackCharset;
   }
 
-  public CueContext detectEncoding(File file) {
-    return detectEncoding(file.toPath());
-  }
-
-  public CueContext detectEncoding(Path file) {
-    try (InputStream is = Files.newInputStream(file)) {
-      Charset charset = detectEncoding(is);
-      return new CueContext(file, charset);
-    } catch (IOException e) {
-      log.debug("Fallback to {} for {}: {}", fallbackCharset, file.toAbsolutePath(), e.getMessage(), e);
-      return new CueContext(file, fallbackCharset);
-    }
-  }
-
-  public Charset detectEncoding(InputStream is) throws IOException {
-    Charset charset;
-
-    if(!is.markSupported()) { // icu calls reset() on the stream, so it needs to support mark()
-      is = new BufferedInputStream(is); // no try,
-    }
-
-    CharsetDetector cd = new CharsetDetector();
-    cd.setText(is);
-    CharsetMatch cm = cd.detect(); // calls reset() !
-    if (cm != null && cm.getConfidence() > confidence) {
-      charset = Charset.forName(cm.getName());
-    } else {
-      log.debug("Confidence low. Fallback to {}", fallbackCharset);
-      charset = fallbackCharset;
-    }
-    return charset;
-  }
-
-
-  public CueDisc readCueSheet(File cueFile) throws IOException {
-    return readCueSheet(cueFile.toPath());
-  }
-
-  public static CueDisc readCueSheet(File cueFile, Charset charset) throws IOException {
-    return readCueSheet(cueFile.toPath(), charset);
-  }
-
-  public CueDisc readCueSheet(Path cueFile) throws IOException {
-    CueContext context = detectEncoding(cueFile);
-    return readCueSheet(cueFile, context.getCharset());
-  }
-
-  public static CueDisc readCueSheet(Path cueFile, Charset charset) throws IOException {
-    if (!isCueFile(cueFile)) {
-      throw new IllegalArgumentException(MESSAGE_NOT_CUE + cueFile);
-    }
-    try (InputStream inputStream = Files.newInputStream(cueFile)) {
-      return readCueSheet(inputStream, new CueContext(cueFile, charset));
-    }
-  }
 
   public static boolean isCueFile(@NonNull Path file) {
     return Files.isRegularFile(file) && CueTools.isExt(file.getFileName().toString(), CUE_EXTENSION);
   }
 
-  public static CueDisc readCueSheet(URL cueFile,  Charset charset) throws IOException {
+  public CueDisc readCueSheet(File cueFile) throws IOException {
+    return readCueSheet(cueFile.toPath());
+  }
+
+  public CueDisc readCueSheet(File cueFile, Charset charset) throws IOException {
+    return readCueSheet(cueFile.toPath(), charset);
+  }
+
+  public CueDisc readCueSheet(File cueFile, CueReadOptions options) throws IOException {
+    return readCueSheet(cueFile.toPath(), options);
+  }
+
+  public CueDisc readCueSheet(Path cueFile) throws IOException {
+    return readCueSheet(cueFile, (Charset) null);
+  }
+
+  public CueDisc readCueSheet(Path cueFile, Charset charset) throws IOException {
+    return readCueSheet(cueFile, new CueReadOptions(charset));
+  }
+
+  public CueDisc readCueSheet(Path cueFile, CueReadOptions options) throws IOException {
+    if (!isCueFile(cueFile)) {
+      throw new IllegalArgumentException(MESSAGE_NOT_CUE + cueFile);
+    }
+    try (InputStream inputStream = Files.newInputStream(cueFile)) {
+      return readCueSheet(inputStream, new CueReadContext(cueFile, options));
+    }
+  }
+
+  public CueDisc readCueSheet(URL cueFile) throws IOException {
+    return readCueSheet(cueFile, (Charset) null);
+  }
+
+  public CueDisc readCueSheet(URL cueFile, Charset charset) throws IOException {
+    return readCueSheet(cueFile, new CueReadOptions(charset));
+  }
+
+  public CueDisc readCueSheet(URL cueFile, CueReadOptions options) throws IOException {
     try (InputStream is = cueFile.openStream()) {
-      return readCueSheet(is, new CueContext(cueFile.toExternalForm(), charset));
+      return readCueSheet(is, new CueReadContext(cueFile.toExternalForm(), options));
     }
   }
 
-  public static CueDisc readCueSheet(InputStream inputStream, CueContext context) throws IOException {
-    try (CueLineReader cueLineReader = new CueLineReader(inputStream, context.getCharset())) {
-      return readCueSheet(cueLineReader, context);
+  public CueDisc readCueSheet(InputStream is, CueReadContext context) throws IOException {
+    if(!is.markSupported()) {
+      is = new BufferedInputStream(is);
+    }
+    Charset charset = handleBomAndCharset(is, context);
+    try (InputStreamReader reader = new InputStreamReader(is, charset)) {
+      return readCueSheet(reader, context);
     }
   }
 
-  public static CueDisc readCueSheet(Reader reader, CueContext context) throws IOException {
-    try (CueLineReader cueLineReader = new CueLineReader(reader, context.getCharset())) {
-      return readCueSheet(cueLineReader, context);
-    }
+  /**
+   * Will NOT try to skip any BOM since a reader implies we already know the charset (and hence may have done the necessary skipping)
+   */
+  public CueDisc readCueSheet(Reader reader, CueReadContext context) throws IOException {
+    return readCueSheet(new CueLineReader(reader), context);
   }
 
-  public static CueDisc readCueSheet(CharSequence[] lines, CueContext context) throws IOException {
-    Charset charset = context.getCharset();
+  public CueDisc readCueSheet(CharSequence[] lines, CueReadContext context) throws IOException {
+    CueReadOptions options = context.getOptions();
+    byte[] bytes = String.join("\n", lines)
+        .getBytes(options.getCharset());
+    return readCueSheet(bytes, context);
+  }
+
+  public CueDisc readCueSheet(Iterable<? extends CharSequence> lines, CueReadContext context) throws IOException {
+    Charset charset = context.getOptions().getCharset();
     byte[] bytes = String.join("\n", lines)
         .getBytes(charset);
     return readCueSheet(bytes, context);
   }
 
-  public static CueDisc readCueSheet(Iterable<? extends CharSequence> lines, CueContext context) throws IOException {
-    Charset charset = context.getCharset();
-    byte[] bytes = String.join("\n", lines)
-        .getBytes(charset);
-    return readCueSheet(bytes, context);
+  public CueDisc readCueSheet(byte[] bytes, CueReadContext context) throws IOException {
+    return readCueSheet(new ByteArrayInputStream(bytes), context);
   }
 
-  public static CueDisc readCueSheet(byte[] bytes, CueContext context) throws IOException {
-    try (CueLineReader cueLineReader = new CueLineReader(new ByteArrayInputStream(bytes), context.getCharset())) {
-      return readCueSheet(cueLineReader, context);
-    }
-  }
-
-  public static CueDisc readCueSheet(CueLineReader cueLineReader, CueContext context) throws IOException {
-    CueDisc disc = new CueDisc(context.getPath(), context.getCharset());
+  public static CueDisc readCueSheet(CueLineReader cueLineReader, CueReadContext context) throws IOException {
+    CueReadOptions options = context.getOptions();
+    CueDisc disc = new CueDisc(context.getPath(), options.getCharset());
     int previousTrackNum = 0;
 
     CueLine line;
@@ -170,17 +167,82 @@ public class CueSheetReader {
     }
 
     // if some timecodes were straightened, the odds are that all the timecodes' frames of the sheet were in hundredths of a second
-    if(context.isTimeCodeLeniency()
-        && disc.getIndexes().stream().anyMatch(index -> index.getTimeCode()._is100to75())) {
+    if(options.isTimeCodeLeniency()
+        && disc.getIndexes().stream().anyMatch(index -> index.getTimeCode().isScaled100to75())) {
       disc.getIndexes().stream()
-          .filter(index -> !index.getTimeCode()._is100to75())
-          .forEach(cueIndex -> cueIndex.setTimeCode(cueIndex.getTimeCode()._100to75()));
+          .filter(index -> !index.getTimeCode().isScaled100to75())
+          .forEach(cueIndex -> cueIndex.setTimeCode(cueIndex.getTimeCode().scale100to75()));
     }
 
     return disc;
   }
 
-  private static int readCueSheetLine(CueLineReader cueLineReader, CueLine line, int previousTrackNum, CueDisc disc, CueContext context) throws IOException {
+  /**
+   * @param is must support marking
+   * @param context; its options charset may be altered if the bom or the charset detection decides
+   * @return detected charset, else fallback
+   * @throws IOException
+   */
+  private Charset handleBomAndCharset(InputStream is, CueReadContext context) throws IOException {
+    is.mark(Bom.MAX_LENGTH_BYTES);
+    byte[] bom = Bom.read(is);
+    is.reset();
+
+    CueReadOptions options = context.getOptions();
+    Charset actualCharset = options.getCharset();
+    if (bom != null) {
+      int skipped = 0;
+      while(skipped < bom.length) {
+        skipped += is.skip(bom.length);
+      }
+      // and forcing charset to the one we're now sure of.
+      actualCharset = BOM_TO_CHARSET.get(bom);
+    } else if(options.getCharset() == null) {
+      try {
+        actualCharset = detectEncoding(is);
+      } catch(IOException e) {
+        String message = String.format("Fallback to %s for %s: %s", fallbackCharset, context.getPath(), e.getMessage());
+        log.warn(message, e);
+        context.addError(message);
+        actualCharset = fallbackCharset;
+      }
+    }
+    options.setCharset(actualCharset);
+    return actualCharset;
+  }
+
+  public Charset detectEncoding(File file) throws IOException {
+    return detectEncoding(file.toPath());
+  }
+
+  public Charset detectEncoding(Path file) throws IOException {
+    try (InputStream is = Files.newInputStream(file)) {
+      return detectEncoding(is);
+    }
+  }
+
+  public Charset detectEncoding(URL url) throws IOException {
+    try (InputStream is = url.openStream()) {
+      return detectEncoding(is);
+    }
+  }
+
+  public Charset detectEncoding(InputStream is) throws IOException {
+    if(!is.markSupported()) { // icu calls reset() on the stream, so it needs to support mark()
+      is = new BufferedInputStream(is); // no try,
+    }
+
+    CharsetDetector cd = new CharsetDetector();
+    cd.setText(is);
+    CharsetMatch cm = cd.detect(); // calls reset() !
+    if (cm != null && cm.getConfidence() > confidence) {
+      return Charset.forName(cm.getName());
+    } else {
+      throw new IOException("Confidence low. Cannot detect charset");
+    }
+  }
+
+  private static int readCueSheetLine(CueLineReader cueLineReader, CueLine line, int previousTrackNum, CueDisc disc, CueReadContext context) throws IOException {
     String keyword = line.getKeyword();
     if (keyword != null) {
       String tail = line.getTail();
@@ -214,11 +276,11 @@ public class CueSheetReader {
           disc.addRemark(readRemark(line));
           break;
         default:
-          log.warn("{}#{}: Unknown disc line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+          context.addError("%s#%s: Unknown disc line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
           disc.addOther(readOther(line));
       }
     } else {
-      log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
+      context.addError(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
     }
     return previousTrackNum;
   }
@@ -250,7 +312,7 @@ public class CueSheetReader {
     return new CueOther(line.getKeyword(), unquote(line.getTail()));
   }
 
-  private static CueFile readFile(FileReference fileReference, int previousTrackNum, CueLineReader reader, CueContext context) throws IOException {
+  private static CueFile readFile(FileReference fileReference, int previousTrackNum, CueLineReader reader, CueReadContext context) throws IOException {
     reader.mark(); // to avoid infinite loop on FILE followed by FILE
     CueFile file = new CueFile(fileReference);
 
@@ -270,13 +332,13 @@ public class CueSheetReader {
               file.renumberingNecessary = file.renumberingNecessary || (number != ++previousTrackNum);
               break;
             default:
-              log.warn("{}: Unknown file line: {}", context.getPath(), line.getRaw());
+              context.addError("%S: Unknown file line: %S", context.getPath(), line.getRaw());
               // maybe belongs to the upper level
               reader.reset();
               return file;
           }
         } else {
-          log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
+          context.addError(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
@@ -286,7 +348,9 @@ public class CueSheetReader {
   }
 
 
-  private static CueTrack readTrack(int trackNumber, String type, CueLineReader reader, CueContext context) throws IOException {
+  private static CueTrack readTrack(int trackNumber, String type, CueLineReader reader, CueReadContext context) throws IOException {
+    CueReadOptions options = context.getOptions();
+
     reader.mark();
     CueTrack track = new CueTrack(trackNumber, type);
 
@@ -303,7 +367,7 @@ public class CueSheetReader {
               reader.reset();
               return track;
             case CueIndex.KEYWORD:
-              track.addIndex(readIndex(line, context));
+              track.addIndex(readIndex(line, options));
               break;
             case TITLE:
               track.setTitle(unquote(tail));
@@ -316,13 +380,13 @@ public class CueSheetReader {
               break;
             case ISRC:
               String isrc = unquote(tail);
-              track.setIsrc(isrc, context.isIsrcLeniency());
+              setIsrc(track, isrc, context);
               break;
             case PREGAP:
-              track.setPreGap(TimeCode.parse(tail, context.isTimeCodeLeniency()));
+              track.setPreGap(TimeCode.parse(tail, options.isTimeCodeLeniency()));
               break;
             case POSTGAP:
-              track.setPostGap(TimeCode.parse(tail, context.isTimeCodeLeniency()));
+              track.setPostGap(TimeCode.parse(tail, options.isTimeCodeLeniency()));
               break;
             case FLAGS:
               track.setFlags(readFlags(line));
@@ -331,11 +395,11 @@ public class CueSheetReader {
               track.addRemark(readRemark(line));
               break;
             default:
-              log.warn("{}#{}: Unknown track line: {}", context.getPath(), line.getLineNumber(), line.getRaw());
+              context.addError("%s#%S: Unknown track line: %s", context.getPath(), line.getLineNumber(), line.getRaw());
               track.addOther(readOther(line));
           }
         } else {
-          log.warn(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
+          context.addError(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
@@ -344,13 +408,20 @@ public class CueSheetReader {
     return track; // for the last track
   }
 
+  private static void setIsrc(CueTrack track, String isrc, CueReadContext context) {
+    CueReadOptions options = context.getOptions();
+    if(track.setIsrc(isrc, options.isIsrcLeniency())) {
+      context.addError(CueTrack.MESSAGE_BAD_ISRC, isrc);
+    }
+  }
+
   private static List<CueFlag> readFlags(CueLine line) {
     return line.getTailParts().stream().map(CueFlag::flagOf).collect(toList());
   }
 
-  private static CueIndex readIndex(CueLine cueLine, CueContext context) {
+  private static CueIndex readIndex(CueLine cueLine, CueReadOptions options) {
     int number = Integer.parseInt(cueLine.getTailWord(0));
     String timeCode = cueLine.getTailWord(1);
-    return new CueIndex(number, TimeCode.parse(timeCode, context.isTimeCodeLeniency()));
+    return new CueIndex(number, TimeCode.parse(timeCode, options.isTimeCodeLeniency()));
   }
 }

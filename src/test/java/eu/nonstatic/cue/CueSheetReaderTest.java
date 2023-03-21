@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-class CueReaderTest extends CueTestBase {
+class CueSheetReaderTest extends CueTestBase {
 
   static final String TMP_DIR = System.getProperty("java.io.tmpdir");
   public static final String ASCII_BE_BOP_A_LULA = "Be Bop a Lula";
@@ -80,12 +80,13 @@ class CueReaderTest extends CueTestBase {
   static void checkCharset(String line, Charset fileCharset, Charset expectedCharset) throws IOException {
     File tempFile = createFileWithCharset(line, fileCharset);
 
-    CueContext context = new CueSheetReader().detectEncoding(tempFile);
+    Charset charset = new CueSheetReader().detectEncoding(tempFile);
+    CueReadContext context = new CueReadContext(tempFile, new CueReadOptions(charset));
     assertTrue(context.getName().startsWith("test") && context.getName().endsWith(".tmp"));
 
     assertTrue(context.getPath().startsWith(TMP_DIR));
     assertEquals(tempFile.getAbsolutePath(), context.getPath());
-    assertEquals(expectedCharset, context.getCharset());
+    assertEquals(expectedCharset, charset);
     tempFile.delete();
   }
 
@@ -111,7 +112,7 @@ class CueReaderTest extends CueTestBase {
 
   @Test
   void should_read_cuesheet_from_url() throws IOException {
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, StandardCharsets.UTF_8);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8);
     checkReadCueSheet(disc, myTestUrl.toExternalForm(), "", false);
     assertFalse(disc.isRenumberingNecessary());
 
@@ -381,10 +382,11 @@ class CueReaderTest extends CueTestBase {
     copyFileContents(AudioTestBase.class.getResource(WAVE_NAME), tempDir, "some file 2.WAV");
 
     try {
-      CueDisc disc1 = new CueSheetReader().readCueSheet(tempFile.toFile());
+      CueSheetReader cueSheetReader = new CueSheetReader();
+      CueDisc disc1 = cueSheetReader.readCueSheet(tempFile.toFile());
       checkReadCueSheet(disc1, tempFile.toString(), tempDir.toString(), true);
 
-      CueDisc disc2 = CueSheetReader.readCueSheet(tempFile.toFile(), charset);
+      CueDisc disc2 = cueSheetReader.readCueSheet(tempFile.toFile(), charset);
       checkReadCueSheet(disc2, tempFile.toString(), tempDir.toString(), true);
     } finally {
       deleteRecursive(tempDir);
@@ -394,8 +396,8 @@ class CueReaderTest extends CueTestBase {
   @Test
   void should_skip_non_cue_file() throws IOException {
     Path tempFile = Files.createTempFile("test", ".xyz");
-    CueSheetReader reader = new CueSheetReader();
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> reader.readCueSheet(tempFile));
+    CueSheetReader cueSheetReader = new CueSheetReader();
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> cueSheetReader.readCueSheet(tempFile));
     String expectedMessage = MESSAGE_NOT_CUE + tempFile.toAbsolutePath();
     assertEquals(expectedMessage, ex.getMessage());
   }
@@ -403,21 +405,24 @@ class CueReaderTest extends CueTestBase {
   @Test
   void should_read_cuesheet_from_lines() throws IOException {
     String expectedCuePath = myTestUrl.toExternalForm();
-    CueContext context = new CueContext(expectedCuePath, StandardCharsets.UTF_8);
+    CueReadOptions options = new CueReadOptions(StandardCharsets.UTF_8);
+    CueReadContext context = new CueReadContext(expectedCuePath, options);
 
+    CueSheetReader cueSheetReader = new CueSheetReader();
     List<String> lines = readLines(myTestUrl, StandardCharsets.UTF_8);
-    CueDisc disc1 = CueSheetReader.readCueSheet(lines, context);
+    CueDisc disc1 = cueSheetReader.readCueSheet(lines, context);
     checkReadCueSheet(disc1, expectedCuePath, "", false);
 
-    CueDisc disc2 = CueSheetReader.readCueSheet(lines.toArray(String[]::new), context);
+    CueDisc disc2 = cueSheetReader.readCueSheet(lines.toArray(String[]::new), context);
     checkReadCueSheet(disc2, expectedCuePath, "", false);
   }
 
   @Test
   void should_read_cuesheet_from_reader() throws IOException {
-    CueContext context = new CueContext(myTestUrl.toExternalForm(), StandardCharsets.UTF_8);
-    try(InputStreamReader isr = new InputStreamReader(myTestUrl.openStream(), context.getCharset())) {
-      CueDisc disc = CueSheetReader.readCueSheet(isr, context);
+    CueReadOptions options = new CueReadOptions(StandardCharsets.UTF_8);
+    CueReadContext context = new CueReadContext(myTestUrl.toExternalForm(), options);
+    try(InputStreamReader isr = new InputStreamReader(myTestUrl.openStream(), options.getCharset())) {
+      CueDisc disc = new CueSheetReader().readCueSheet(isr, context);
       checkReadCueSheet(disc, myTestUrl.toExternalForm(), "", false);
     }
   }

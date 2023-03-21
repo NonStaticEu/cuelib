@@ -30,7 +30,7 @@ public class CueOther implements CueEntity {
   private final String value;
 
   @Override
-  public String toSheetLine(CueSheetOptions options) {
+  public String toSheetLine(CueWriteOptions options) {
     StringBuilder sb = new StringBuilder(keyword);
     if (value != null) {
       sb.append(' ').append(quote(value));

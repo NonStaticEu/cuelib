@@ -15,7 +15,7 @@ import java.time.Duration;
 import lombok.Getter;
 
 @Getter
-public final class CueSheetOptions {
+public final class CueWriteOptions {
 
   /**
    * Overwrites the existing target file if it exists
@@ -52,7 +52,7 @@ public final class CueSheetOptions {
   private final Long burningLimit;
 
 
-  private CueSheetOptions(boolean overwrite, boolean noTrackAllowed, boolean fullPaths, Duration minTrackDuration, boolean orderedTimeCodes, Long burningLimit) {
+  private CueWriteOptions(boolean overwrite, boolean noTrackAllowed, boolean fullPaths, Duration minTrackDuration, boolean orderedTimeCodes, Long burningLimit) {
     this.overwrite = overwrite;
     this.noTrackAllowed = noTrackAllowed;
     this.fullPaths = fullPaths;
@@ -64,8 +64,8 @@ public final class CueSheetOptions {
   /**
    * @return a new CueSheetOptions with overwrite=true, orderedTimeCodes=true, allowNoTrack=false
    */
-  public static CueSheetOptions defaults() {
-    return CueSheetOptions.builder()
+  public static CueWriteOptions defaults() {
+    return CueWriteOptions.builder()
         .overwrite(false)
         .noTrackAllowed(false)
         .fullPaths(false)
@@ -132,8 +132,8 @@ public final class CueSheetOptions {
             .burningLimit(burningLimit);
     }
 
-    public CueSheetOptions build() {
-      return new CueSheetOptions(overwrite, noTrackAllowed, fullPaths, minTrackDuration, orderedTimeCodes, burningLimit);
+    public CueWriteOptions build() {
+      return new CueWriteOptions(overwrite, noTrackAllowed, fullPaths, minTrackDuration, orderedTimeCodes, burningLimit);
     }
   }
 }

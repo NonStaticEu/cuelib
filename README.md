@@ -3,7 +3,7 @@ A simple java .cue file reader lib
 Cue files were invented by Jeff Arnold for CDRWIN
 
 ## TODO
-* BOM, if any, should be used to detect encoding
+* MP3 resync test
 
 ## Useful Docs
 https://en.wikipedia.org/wiki/Cue_sheet_(computing)  

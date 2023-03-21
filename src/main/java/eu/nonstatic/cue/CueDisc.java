@@ -367,7 +367,6 @@ public class CueDisc implements CueIterable<CueFile> {
     return movingFileAndTrack.track;
   }
 
-
   protected FileAndTrack chunk(int trackNumber) throws TrackNotFoundException {
     CueTools.validateTrackRange(RANGE_MESSAGE_TRACK_NUMBER, trackNumber, firstTrackNumber, getTrackCount());
 
@@ -479,7 +478,7 @@ public class CueDisc implements CueIterable<CueFile> {
    * @param options
    * @return
    */
-  public CueIssues checkConsistency(CueSheetOptions options) {
+  public CueIssues checkConsistency(CueWriteOptions options) {
     repackFiles(); // optimization + renumbering, else some track-related error messages might be misleading
 
     var issues = new CueIssues();
@@ -538,7 +537,7 @@ public class CueDisc implements CueIterable<CueFile> {
    * @throws IndexNotFoundException if the needed index(es) for the computations do(es)n't exist
    * @throws NegativeDurationException if the file's duration is not sufficient, making that last track's duration negative which is illogical (not enough data to play/burn)
    */
-  private Map<CueTrack, Duration> getTracksDurations() {
+  public Map<CueTrack, Duration> getTracksDurations() {
     var tracksDurations = new LinkedHashMap<CueTrack, Duration>(); // linked to preserve order
     for (CueFile file : files) {
       tracksDurations.putAll(file.getTracksDurations());
@@ -549,7 +548,7 @@ public class CueDisc implements CueIterable<CueFile> {
   /**
    * @return bytes on disc including lead-in, excluding lead-out
    */
-  private long getSizeOnDisc() {
+  public long getSizeOnDisc() {
     // Initial mandatory lead-in as per specification EVEN if there is a cuefile pregap or a hidden track
     // (the lead in is actually silence with the TOC as subcode)
     long totalSize = SizeAndDuration.getCompactDiscBytesFor(DURATION_LEAD_IN, TimeCodeRounding.CLOSEST);

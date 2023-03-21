@@ -163,8 +163,8 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
     int rawFrames = parseInt(parts[2]);
 
     if(lenient && rawFrames >= FRAMES_PER_SECOND) { // seems someone used hundredths of a second instead of frames!
-      TimeCode result = new TimeCode(rawMinutes, rawSeconds, _100to75(rawFrames), rawFrames);
-      log.warn("Leniency over {} parsing, using {} as frame part", timeCode, result.frames);
+      TimeCode result = new TimeCode(rawMinutes, rawSeconds, scale100to75(rawFrames), rawFrames);
+      log.warn("Leniency over {} parsing, using {} as frame part", timeCode, result.frames); //TODO add to context report
       return result;
     } else {
       return new TimeCode(rawMinutes, rawSeconds, rawFrames);
@@ -197,22 +197,22 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
     return new TimeCode(toMillis() + otherMillis, rounding);
   }
 
-  public static int _100to75(int hundredths) {
+  public static int scale100to75(int hundredths) {
     if (hundredths < 0 || hundredths >= HUNDRED) {
       throw new IllegalArgumentException("hundredths must be in the [0-99] range");
     }
     return (hundredths * FRAMES_PER_SECOND + FRAMES_PER_SECOND - 1) / HUNDRED;
   }
 
-  TimeCode _100to75() {
-    if(_is100to75()) {
+  TimeCode scale100to75() {
+    if(isScaled100to75()) {
       return this;
     } else {
-      return new TimeCode(minutes, seconds, _100to75(rawFrames), rawFrames);
+      return new TimeCode(minutes, seconds, scale100to75(rawFrames), rawFrames);
     }
   }
 
-  boolean _is100to75() {
+  boolean isScaled100to75() {
     return frames != rawFrames;
   }
 

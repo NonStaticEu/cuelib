@@ -22,45 +22,45 @@ public class WaveInfoSupplier implements AudioInfoSupplier<WaveInfo> {
    * https://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
    */
   public WaveInfo getInfos(InputStream is, String name) throws IOException {
-    try (AudioInputStream wis = new AudioInputStream(is, name)) {
-      int nbChunks = checkHeader(wis);
-      return readDetails(wis, nbChunks);
+    try (AudioInputStream ais = new AudioInputStream(is, name)) {
+      int nbChunks = checkHeader(ais);
+      return readDetails(ais, nbChunks);
     }
   }
 
-  private int checkHeader(AudioInputStream wis) throws IOException, IllegalArgumentException {
-    if (!"RIFF".equals(wis.readString(4))) {
-      throw new IllegalArgumentException("Not a WAVE file: " + wis.name);
+  private int checkHeader(AudioInputStream ais) throws IOException, IllegalArgumentException {
+    if (!"RIFF".equals(ais.readString(4))) {
+      throw new IllegalArgumentException("Not a WAVE file: " + ais.name);
     }
-    int nbChunks = wis.read32bitLE() - 4;
-    if (!"WAVE".equals(wis.readString(4))) {
-      throw new IllegalArgumentException("No WAVE id in: " + wis.name);
+    int nbChunks = ais.read32bitLE() - 4;
+    if (!"WAVE".equals(ais.readString(4))) {
+      throw new IllegalArgumentException("No WAVE id in: " + ais.name);
     }
     return nbChunks;
   }
 
-  private WaveInfo readDetails(AudioInputStream wis, int nbChunks) throws IOException {
+  private WaveInfo readDetails(AudioInputStream ais, int nbChunks) throws IOException {
     WaveInfo details = new WaveInfo();
     for (int c = 0; c < nbChunks; c++) {
-      String ckName = wis.readString(4);
-      int ckSize = wis.read32bitLE();
+      String ckName = ais.readString(4);
+      int ckSize = ais.read32bitLE();
 
       if ("fmt ".equals(ckName)) {
-        details.format = wis.read16bitLE(); // format
-        details.numChannels = wis.read16bitLE(); // num channels
-        details.frameRate = wis.read32bitLE();
-        wis.skipNBytesBeforeJava12(4); // data rate
-        details.frameSize = wis.read16bitLE(); //  numChannels * bitsPerSample/8
-        wis.skipNBytesBeforeJava12(2); // bits per sample
-        wis.skipNBytesBeforeJava12((long)ckSize - 16);
+        details.format = ais.read16bitLE(); // format
+        details.numChannels = ais.read16bitLE(); // num channels
+        details.frameRate = ais.read32bitLE();
+        ais.skipNBytesBeforeJava12(4); // data rate
+        details.frameSize = ais.read16bitLE(); //  numChannels * bitsPerSample/8
+        ais.skipNBytesBeforeJava12(2); // bits per sample
+        ais.skipNBytesBeforeJava12((long)ckSize - 16);
       } else if ("data".equals(ckName)) {
         details.audioSize = ckSize;
         return details;
       } else {
-        wis.skipNBytesBeforeJava12(ckSize);
+        ais.skipNBytesBeforeJava12(ckSize);
       }
     }
-    throw new IllegalArgumentException("No data chunk in WAVE file: " + wis.name);
+    throw new IllegalArgumentException("No data chunk in WAVE file: " + ais.name);
   }
 
   public static final class WaveInfo implements AudioInfo {

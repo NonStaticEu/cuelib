@@ -37,30 +37,30 @@ public final class CueSheetWriter {
 
   private CueSheetWriter() {}
 
-  public static void writeCueSheet(CueDisc cueDisc, File cueFile, CueSheetOptions options) throws IOException {
+  public static void writeCueSheet(CueDisc cueDisc, File cueFile, CueWriteOptions options) throws IOException {
     writeCueSheet(cueDisc, cueFile.toPath(), options);
   }
 
-  public static void writeCueSheet(@NonNull CueDisc cueDisc, @NonNull Path cueFile, CueSheetOptions options) throws IOException {
+  public static void writeCueSheet(@NonNull CueDisc cueDisc, @NonNull Path cueFile, CueWriteOptions options) throws IOException {
     try (OutputStream os = Files.newOutputStream(cueFile, options.isOverwrite() ? OPTIONS_OVERWRITE : OPTIONS_STANDARD)) {
       writeCueSheet(cueDisc, os, options);
     }
   }
 
-  public static void writeCueSheet(CueDisc cueDisc, OutputStream os, CueSheetOptions options) throws IOException {
+  public static void writeCueSheet(CueDisc cueDisc, OutputStream os, CueWriteOptions options) throws IOException {
     Charset charset = Objects.requireNonNullElse(cueDisc.getCharset(), CueDisc.DEFAULT_CHARSET);
     try (Writer writer = new OutputStreamWriter(os, charset)) {
       writeCueSheet(cueDisc, writer, options);
     }
   }
 
-  public static void writeCueSheet(CueDisc cueDisc, Writer writer, CueSheetOptions options) {
+  public static void writeCueSheet(CueDisc cueDisc, Writer writer, CueWriteOptions options) {
     try (PrintWriter pw = new PrintWriter(writer)) {
       writeCueSheet(cueDisc, pw, options);
     }
   }
 
-  public static void writeCueSheet(CueDisc cueDisc, PrintWriter pw, CueSheetOptions options) {
+  public static void writeCueSheet(CueDisc cueDisc, PrintWriter pw, CueWriteOptions options) {
     CueIssues issues = cueDisc.checkConsistency(options);
     if(!issues.isEmpty()) {
       throw issues.toException();
@@ -81,7 +81,7 @@ public final class CueSheetWriter {
   }
 
 
-  public static void writeFile(CueFile file, PrintWriter pw, CueSheetOptions options) {
+  public static void writeFile(CueFile file, PrintWriter pw, CueWriteOptions options) {
     if(file.getTrackCount() > 0) {
       printlnRaw(pw, INDENTATION_FILE, file.toSheetLine(options));
 
@@ -89,7 +89,7 @@ public final class CueSheetWriter {
     }
   }
 
-  public static void writeTrack(CueTrack track, PrintWriter pw, CueSheetOptions options) {
+  public static void writeTrack(CueTrack track, PrintWriter pw, CueWriteOptions options) {
     if(track.getIndexCount() > 0) {
       printlnRaw(pw, INDENTATION_TRACK, track.toSheetLine(options));
 
@@ -118,7 +118,7 @@ public final class CueSheetWriter {
     }
   }
 
-  public static void writeIndex(CueIndex index, PrintWriter pw, CueSheetOptions options) {
+  public static void writeIndex(CueIndex index, PrintWriter pw, CueWriteOptions options) {
     printlnRaw(pw, INDENTATION_INDEX, index.toSheetLine(options));
   }
 

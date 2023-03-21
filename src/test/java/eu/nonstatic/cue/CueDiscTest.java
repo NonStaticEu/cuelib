@@ -427,7 +427,7 @@ class CueDiscTest extends CueTestBase {
 
   @Test
   void should_move_track_after() throws IOException {
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, StandardCharsets.UTF_8);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8);
     CueTrack track2 = disc.getTrack(2);
     CueTrack track5 = disc.getTrack(5);
 
@@ -446,7 +446,7 @@ class CueDiscTest extends CueTestBase {
 
   @Test
   void should_move_track_before() throws IOException {
-    CueDisc disc = CueSheetReader.readCueSheet(myTestUrl, StandardCharsets.UTF_8);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8);
     CueTrack track1 = disc.getTrack(1);
     CueTrack track2 = disc.getTrack(2);
     CueTrack track4 = disc.getTrack(4);

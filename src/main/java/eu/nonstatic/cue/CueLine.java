@@ -19,7 +19,7 @@ import lombok.Getter;
 class CueLine {
 
   private final int lineNumber;
-  private final String raw;
+  private final String raw; // trimmed actually
   private final String keyword;
   private final String tail;
   private final List<String> tailParts;

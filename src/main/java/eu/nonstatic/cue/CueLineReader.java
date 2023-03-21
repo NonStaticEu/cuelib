@@ -9,8 +9,6 @@
  */
 package eu.nonstatic.cue;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,40 +19,13 @@ import java.nio.charset.Charset;
 
 public class CueLineReader implements Closeable {
 
-  private static final int BUFFER_SIZE = 8 * 1024;
-
   private final LineNumberReader reader;
 
-  public CueLineReader(InputStream is, Charset charset) throws IOException {
-    if (!is.markSupported()) {
-      is = new BufferedInputStream(is);
-    }
-    is.mark(Bom.MAX_LENGTH_BYTES);
-
-    byte[] bom = Bom.read(is);
-    is.reset();
-    if (bom != null) {
-      int skipped = 0;
-      while(skipped < bom.length) {
-        skipped += is.skip(bom.length);
-      }
-    }
-
-    this.reader = new LineNumberReader(new InputStreamReader(is, charset));
+  public CueLineReader(InputStream is, Charset charset) {
+    this(new InputStreamReader(is, charset));
   }
 
-  public CueLineReader(Reader reader, Charset charset) throws IOException {
-    if (!reader.markSupported()) {
-      reader = new BufferedReader(reader, BUFFER_SIZE);
-    }
-    reader.mark(Bom.MAX_LENGTH_CHARS);
-
-    byte[] bom = Bom.read(reader, charset);
-    reader.reset();
-    if (bom != null) {
-      reader.skip(1); // In all likelihood, a BOM should be one char in the file's encoding
-    }
-
+  public CueLineReader(Reader reader) {
     this.reader = new LineNumberReader(reader);
   }
 

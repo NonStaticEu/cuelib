@@ -24,7 +24,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
   public static final String KEYWORD = CueWords.FILE;
 
   private static final String RANGE_MESSAGE_TRACK_INDEX = "Track index";
-  private static final CueSheetOptions TO_STRING_OPTIONS = CueSheetOptions.builder().fullPaths(true).build();
+  private static final CueWriteOptions TO_STRING_OPTIONS = CueWriteOptions.builder().fullPaths(true).build();
 
   protected FileReference fileReference;
 
@@ -291,7 +291,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
     return issues;
   }
 
-  public String toSheetLine(CueSheetOptions options) {
+  public String toSheetLine(CueWriteOptions options) {
     String file = options.isFullPaths() ? getFile() : getFileName();
     return String.format("%s \"%s\" %s", KEYWORD, file, getType().getValue());
   }

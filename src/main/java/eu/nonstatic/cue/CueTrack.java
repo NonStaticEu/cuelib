@@ -24,6 +24,7 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
 
   private static final Pattern ISRC_PATTERN = Pattern.compile("([A-Z]{2})\\-?([A-Z0-9]{3})\\-?(\\d{2})\\-?(\\d{5})"); // dashes should be unnecessary but there's lots of cue oddities
   public static final String ISRC_ZERO = "000000000000"; // placeholder used by some softwares when ISRC is unknown
+  static final String MESSAGE_BAD_ISRC = "ISRC read: %s. Must use the CCOOOYYSSSSS format: https://en.wikipedia.org/wiki/International_Standard_Recording_Code";
 
   public static final String KEYWORD = CueWords.TRACK;
   public static final int TRACK_ONE = 1;
@@ -121,23 +122,26 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
     setIsrc(isrc, false);
   }
 
-  public void setIsrc(String isrc, boolean lenient) {
+  /**
+   * @return true if set with leniency
+   */
+  public boolean setIsrc(String isrc, boolean lenient) {
     if(isrc == null || ISRC_ZERO.equals(isrc)) {
       this.isrc = null;
     } else {
       Matcher matcher = ISRC_PATTERN.matcher(isrc);
       if (!matcher.matches()) {
-        String message = "ISRC read: " + isrc + ". Must use the CCOOOYYSSSSS format: https://en.wikipedia.org/wiki/International_Standard_Recording_Code";
         if(lenient) {
-          log.warn("Leniency over " + message);
           this.isrc = isrc;
+          return true;
         } else {
-          throw new IllegalArgumentException(message);
+          throw new IllegalArgumentException(String.format(MESSAGE_BAD_ISRC, isrc));
         }
       } else {
         this.isrc = matcher.group(1) + matcher.group(2) + matcher.group(3) + matcher.group(4);
       }
     }
+    return false;
   }
 
 
@@ -454,9 +458,7 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
    * @throws NegativeDurationException
    */
   Duration until(CueTrack otherTrack, Duration fileDuration) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
-    if(!isAudio()) {
-      throw new IllegalTrackTypeException(type, TrackType.AUDIO);
-    }
+    validateAudio();
 
     Duration trackDuration;
 
@@ -465,9 +467,9 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
       throw new IndexNotFoundException(CueIndex.INDEX_TRACK_START);
     }
     if (otherTrack != null) {
-      if(!otherTrack.isAudio()) {
-        throw new IllegalTrackTypeException(type, TrackType.AUDIO);
-      } else if(otherTrack.getIndexCount() > 0) {
+      otherTrack.validateAudio();
+
+      if(otherTrack.getIndexCount() > 0) {
         CueIndex otherStartIndex = otherTrack.getFirstIndex();
         trackDuration = firstIndex.until(otherStartIndex);
         if (trackDuration.isNegative()) {
@@ -495,8 +497,14 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
     return trackDuration;
   }
 
+  private void validateAudio() {
+    if(!isAudio()) {
+      throw new IllegalTrackTypeException(type, TrackType.AUDIO);
+    }
+  }
+
   @Override
-  public String toSheetLine(CueSheetOptions options) {
+  public String toSheetLine(CueWriteOptions options) {
     return String.format("%s %02d %s", KEYWORD, number, type);
   }
 
