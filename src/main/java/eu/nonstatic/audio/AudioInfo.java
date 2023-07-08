@@ -10,7 +10,9 @@
 package eu.nonstatic.audio;
 
 import java.time.Duration;
+import java.util.List;
 
 public interface AudioInfo {
       Duration getDuration();
+      List<AudioIssue> getIssues();
 }

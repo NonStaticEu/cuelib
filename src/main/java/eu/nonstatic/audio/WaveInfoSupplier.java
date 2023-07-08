@@ -13,6 +13,8 @@ import eu.nonstatic.audio.WaveInfoSupplier.WaveInfo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.List;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -21,10 +23,12 @@ public class WaveInfoSupplier implements AudioInfoSupplier<WaveInfo> {
   /**
    * https://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
    */
-  public WaveInfo getInfos(InputStream is, String name) throws IOException {
+  public WaveInfo getInfos(InputStream is, String name) throws AudioInfoException {
     try (AudioInputStream ais = new AudioInputStream(is, name)) {
       int nbChunks = checkHeader(ais);
       return readDetails(ais, nbChunks);
+    } catch (IOException e) {
+      throw new AudioInfoException(name, e);
     }
   }
 
@@ -40,22 +44,22 @@ public class WaveInfoSupplier implements AudioInfoSupplier<WaveInfo> {
   }
 
   private WaveInfo readDetails(AudioInputStream ais, int nbChunks) throws IOException {
-    WaveInfo details = new WaveInfo();
+    WaveInfo info = new WaveInfo();
     for (int c = 0; c < nbChunks; c++) {
       String ckName = ais.readString(4);
       int ckSize = ais.read32bitLE();
 
       if ("fmt ".equals(ckName)) {
-        details.format = ais.read16bitLE(); // format
-        details.numChannels = ais.read16bitLE(); // num channels
-        details.frameRate = ais.read32bitLE();
+        info.format = ais.read16bitLE(); // format
+        info.numChannels = ais.read16bitLE(); // num channels
+        info.frameRate = ais.read32bitLE();
         ais.skipNBytesBeforeJava12(4); // data rate
-        details.frameSize = ais.read16bitLE(); //  numChannels * bitsPerSample/8
+        info.frameSize = ais.read16bitLE(); //  numChannels * bitsPerSample/8
         ais.skipNBytesBeforeJava12(2); // bits per sample
         ais.skipNBytesBeforeJava12((long)ckSize - 16);
       } else if ("data".equals(ckName)) {
-        details.audioSize = ckSize;
-        return details;
+        info.audioSize = ckSize;
+        return info;
       } else {
         ais.skipNBytesBeforeJava12(ckSize);
       }
@@ -63,6 +67,7 @@ public class WaveInfoSupplier implements AudioInfoSupplier<WaveInfo> {
     throw new IllegalArgumentException("No data chunk in WAVE file: " + ais.name);
   }
 
+  @Getter
   public static final class WaveInfo implements AudioInfo {
     private short format;
     private short numChannels;
@@ -73,6 +78,11 @@ public class WaveInfoSupplier implements AudioInfoSupplier<WaveInfo> {
     @Override
     public Duration getDuration() {
       return Duration.ofMillis(Math.round((audioSize * 1000.0) / (frameRate * frameSize)));
+    }
+
+    @Override
+    public List<AudioIssue> getIssues() {
+      return List.of();
     }
   }
 }

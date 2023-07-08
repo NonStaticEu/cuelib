@@ -49,7 +49,7 @@ class CueSheetWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_to_file() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
-    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs).getDisc();
 
     File tempFile = File.createTempFile("cue", null);
     tempFile.delete();
@@ -62,7 +62,7 @@ class CueSheetWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_to_path() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
-    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs).getDisc();
 
     Path tempFile = Files.createTempFile(null, null);
     Files.deleteIfExists(tempFile);
@@ -77,7 +77,7 @@ class CueSheetWriterTest extends CueTestBase {
     CueSheetReader cueSheetReader = new CueSheetReader();
 
     Charset inputCharset = StandardCharsets.UTF_8, outputCharset = StandardCharsets.ISO_8859_1;
-    CueDisc disc = cueSheetReader.readCueSheet(myTestUrl, inputCharset);
+    CueDisc disc = cueSheetReader.readCueSheet(myTestUrl, inputCharset).getDisc();
 
     disc.setCharset(outputCharset);
     File tempFile = File.createTempFile("cue", null);
@@ -91,7 +91,7 @@ class CueSheetWriterTest extends CueTestBase {
   @Test
   void should_write_cuesheet_to_file_overwrite() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
-    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs).getDisc();
     File tempFile = File.createTempFile("cue", null);
     CueSheetWriter.writeCueSheet(disc, tempFile, CueWriteOptions.builder().overwrite(true).build());
     assertFileContents(myTestUrlExpected, tempFile, cs);
@@ -102,7 +102,7 @@ class CueSheetWriterTest extends CueTestBase {
   void should_not_write_cuesheet_to_existing_file() throws IOException {
     Charset cs = StandardCharsets.UTF_8;
 
-    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, cs).getDisc();
     File tempFile = File.createTempFile("cue", null);
 
     CueWriteOptions options = CueWriteOptions.builder().overwrite(false).build();

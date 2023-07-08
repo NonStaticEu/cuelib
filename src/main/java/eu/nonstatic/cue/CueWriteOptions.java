@@ -9,8 +9,6 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.SizeAndDuration.getCompactDiscBytesFor;
-
 import java.time.Duration;
 import lombok.Getter;
 
@@ -114,7 +112,7 @@ public final class CueWriteOptions {
     }
 
     public Builder burningLimit(Duration burningLimit) {
-      Long maxSize = (burningLimit != null) ? getCompactDiscBytesFor(burningLimit, TimeCodeRounding.DOWN) : null;
+      Long maxSize = (burningLimit != null) ? SizeAndDuration.getCompactDiscBytesFrom(burningLimit, TimeCodeRounding.DOWN) : null;
       return burningLimit(maxSize);
     }
 

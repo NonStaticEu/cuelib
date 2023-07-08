@@ -17,32 +17,36 @@ import java.util.List;
 import lombok.Getter;
 
 @Getter
-class CueReadContext {
+class CueSheetContext {
 
   private final String path;
   private final Path parent;
   private final String name;
 
-  private final CueReadOptions options;
+  private final CueOptions options;
   private final List<String> errors = new ArrayList<>();
 
-  public CueReadContext(String name, CueReadOptions options) {
+  public CueSheetContext(String name, CueOptions options) {
     this(name, null, name, options);
   }
 
-  public CueReadContext(Path cueFile, CueReadOptions options) {
+  public CueSheetContext(Path cueFile, CueOptions options) {
     this(cueFile.toString(), cueFile.getParent(), cueFile.getFileName().toString(), options);
   }
 
-  public CueReadContext(File cueFile, CueReadOptions options) {
+  public CueSheetContext(File cueFile, CueOptions options) {
     this(cueFile.toPath(), options);
   }
 
-  private CueReadContext(String path, Path parent, String name, CueReadOptions options) {
+  private CueSheetContext(String path, Path parent, String name, CueOptions options) {
     this.path = path;
     this.parent = parent;
     this.name = name;
     this.options = options;
+  }
+
+  public boolean isErrors() {
+    return !errors.isEmpty();
   }
 
   public List<String> getErrors() {

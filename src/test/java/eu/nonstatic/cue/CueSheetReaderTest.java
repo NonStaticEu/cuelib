@@ -24,11 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.nonstatic.audio.AudioTestBase;
 import eu.nonstatic.cue.FileType.Audio;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -42,8 +44,11 @@ import org.junit.jupiter.api.Test;
 class CueSheetReaderTest extends CueTestBase {
 
   static final String TMP_DIR = System.getProperty("java.io.tmpdir");
-  public static final String ASCII_BE_BOP_A_LULA = "Be Bop a Lula";
-  public static final String UNICODE_CHA_CHA_CHA = "cha cha cha àâéếùï すみませんでした"; //this is UTF-8
+  static final String ASCII_BE_BOP_A_LULA = "Be Bop a Lula";
+  static final String UNICODE_CHA_CHA_CHA = "cha cha cha àâéếùï すみませんでした"; //this is UTF-8
+  static URL bomCueUrl = CueDiscTest.class.getResource("/Bom Test.cue");
+  static URL tcCueUrl = CueDiscTest.class.getResource("/TC Test.cue");
+  static URL isrcCueUrl = CueDiscTest.class.getResource("/ISRC Test.cue");
 
   @Test
   void should_tell_cue_file() throws IOException {
@@ -81,13 +86,46 @@ class CueSheetReaderTest extends CueTestBase {
     File tempFile = createFileWithCharset(line, fileCharset);
 
     Charset charset = new CueSheetReader().detectEncoding(tempFile);
-    CueReadContext context = new CueReadContext(tempFile, new CueReadOptions(charset));
+    CueSheetContext context = new CueSheetContext(tempFile, new CueOptions(charset));
     assertTrue(context.getName().startsWith("test") && context.getName().endsWith(".tmp"));
 
     assertTrue(context.getPath().startsWith(TMP_DIR));
     assertEquals(tempFile.getAbsolutePath(), context.getPath());
     assertEquals(expectedCharset, charset);
     tempFile.delete();
+  }
+
+  @Test
+  void should_infer_charset_from_bom() throws IOException {
+    CueOptions options = CueOptions.builder().build();
+    CueSheetReadout readout = new CueSheetReader().readCueSheet(bomCueUrl, options);
+    CueDisc disc = readout.getDisc();
+    assertFalse(readout.isErrors());
+    assertEquals(StandardCharsets.UTF_8, disc.getCharset());
+    assertEquals(StandardCharsets.UTF_8, options.getCharset());
+  }
+
+  @Test
+  void should_correct_charset_from_bom() throws IOException {
+    CueOptions options = new CueOptions(StandardCharsets.US_ASCII);
+    CueSheetReadout readout = new CueSheetReader().readCueSheet(bomCueUrl, options);
+    CueDisc disc = readout.getDisc();
+    assertFalse(readout.isErrors());
+    assertEquals(StandardCharsets.UTF_8, disc.getCharset());
+    assertEquals(StandardCharsets.UTF_8, options.getCharset());
+  }
+
+  @Test
+  void should_fallback_charset_when_icu_cannot_detect_it() {
+    CueOptions options = CueOptions.builder().build();
+    CueSheetContext context = new CueSheetContext("faulty.cue", options);
+    ByteArrayInputStream is = new ByteArrayInputStream(new byte[]{1, 2, 3, 4, 5, 6});
+
+    CueSheetReader reader = new CueSheetReader(0, StandardCharsets.US_ASCII); // fallback
+    assertThrows(IOException.class, () -> reader.readCueSheet(new FaultyStream(is, Bom.MAX_LENGTH_BYTES), context)); // dies on first line read after charset fallback
+    assertEquals(1, context.getErrors().size());
+    assertEquals("Fallback to US-ASCII for faulty.cue: reads: 4", context.getErrors().get(0));
+    assertEquals(StandardCharsets.US_ASCII, options.getCharset()); // fallback is set
   }
 
   /**
@@ -112,9 +150,13 @@ class CueSheetReaderTest extends CueTestBase {
 
   @Test
   void should_read_cuesheet_from_url() throws IOException {
-    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8);
+    CueSheetReadout readout = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8);
+    CueDisc disc = readout.getDisc();
     checkReadCueSheet(disc, myTestUrl.toExternalForm(), "", false);
     assertFalse(disc.isRenumberingNecessary());
+    assertEquals(2, readout.getErrors().size());
+    assertEquals(myTestUrl + "#12: Unknown disc line: SINGLEWORD", readout.getErrors().get(0));
+    assertEquals(myTestUrl + "#15: Unknown disc line: UNKNOWN ThiNG", readout.getErrors().get(1));
 
 
     disc.getFirstFile().addTrack(new CueTrack(TrackType.AUDIO));
@@ -177,10 +219,13 @@ class CueSheetReaderTest extends CueTestBase {
     assertEquals("0696969424242", disc.getCatalog());
     assertEquals("cdtextfile", disc.getCdTextFile());
 
-    assertEquals(1, disc.getOthers().size());
+    assertEquals(2, disc.getOthers().size());
     CueOther other0 = disc.getOthers().get(0);
-    assertEquals("UNKNOWN", other0.getKeyword());
-    assertEquals("ThiNG", other0.getValue());
+    assertEquals("SINGLEWORD", other0.getKeyword());
+    assertNull(other0.getValue());
+    CueOther other1 = disc.getOthers().get(1);
+    assertEquals("UNKNOWN", other1.getKeyword());
+    assertEquals("ThiNG", other1.getValue());
 
     List<CueRemark> remarks = disc.getRemarks();
     assertEquals(6, remarks.size());
@@ -383,11 +428,19 @@ class CueSheetReaderTest extends CueTestBase {
 
     try {
       CueSheetReader cueSheetReader = new CueSheetReader();
-      CueDisc disc1 = cueSheetReader.readCueSheet(tempFile.toFile());
+      CueSheetReadout readout1 = cueSheetReader.readCueSheet(tempFile.toFile());
+      CueDisc disc1 = readout1.getDisc();
       checkReadCueSheet(disc1, tempFile.toString(), tempDir.toString(), true);
+      assertEquals(2, readout1.getErrors().size());
+      assertEquals(tempFile + "#12: Unknown disc line: SINGLEWORD", readout1.getErrors().get(0));
+      assertEquals(tempFile + "#15: Unknown disc line: UNKNOWN ThiNG", readout1.getErrors().get(1));
 
-      CueDisc disc2 = cueSheetReader.readCueSheet(tempFile.toFile(), charset);
+      CueSheetReadout readout2 = cueSheetReader.readCueSheet(tempFile.toFile(), charset);
+      CueDisc disc2 = readout2.getDisc();
       checkReadCueSheet(disc2, tempFile.toString(), tempDir.toString(), true);
+      assertEquals(2, readout2.getErrors().size());
+      assertEquals(tempFile + "#12: Unknown disc line: SINGLEWORD", readout2.getErrors().get(0));
+      assertEquals(tempFile + "#15: Unknown disc line: UNKNOWN ThiNG", readout2.getErrors().get(1));
     } finally {
       deleteRecursive(tempDir);
     }
@@ -405,8 +458,8 @@ class CueSheetReaderTest extends CueTestBase {
   @Test
   void should_read_cuesheet_from_lines() throws IOException {
     String expectedCuePath = myTestUrl.toExternalForm();
-    CueReadOptions options = new CueReadOptions(StandardCharsets.UTF_8);
-    CueReadContext context = new CueReadContext(expectedCuePath, options);
+    CueOptions options = new CueOptions(StandardCharsets.UTF_8);
+    CueSheetContext context = new CueSheetContext(expectedCuePath, options);
 
     CueSheetReader cueSheetReader = new CueSheetReader();
     List<String> lines = readLines(myTestUrl, StandardCharsets.UTF_8);
@@ -419,11 +472,50 @@ class CueSheetReaderTest extends CueTestBase {
 
   @Test
   void should_read_cuesheet_from_reader() throws IOException {
-    CueReadOptions options = new CueReadOptions(StandardCharsets.UTF_8);
-    CueReadContext context = new CueReadContext(myTestUrl.toExternalForm(), options);
+    CueOptions options = new CueOptions(StandardCharsets.UTF_8);
+    CueSheetContext context = new CueSheetContext(myTestUrl.toExternalForm(), options);
     try(InputStreamReader isr = new InputStreamReader(myTestUrl.openStream(), options.getCharset())) {
       CueDisc disc = new CueSheetReader().readCueSheet(isr, context);
       checkReadCueSheet(disc, myTestUrl.toExternalForm(), "", false);
     }
+  }
+
+  @Test
+  void should_not_be_lenient_on_timecodes() {
+    CueSheetReader cueSheetReader = new CueSheetReader();
+    CueOptions options = new CueOptions(StandardCharsets.UTF_8);
+    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> cueSheetReader.readCueSheet(tcCueUrl, options));
+    assertEquals("frames must be in the [0-74] range", iae.getMessage());
+  }
+
+  @Test
+  void should_be_lenient_on_timecodes() throws IOException {
+    CueSheetReadout readout = new CueSheetReader().readCueSheet(tcCueUrl, CueOptions.builder().timeCodeLeniency(true).build());
+    CueFile file = readout.getDisc().getFirstFile();
+    assertEquals(2, file.getTrackCount());
+    List<CueIndex> t1Indexes = file.getFirstTrack().getIndexes();
+    List<CueIndex> t2Indexes = file.getLastTrack().getIndexes();
+    assertEquals(TimeCode.ZERO_SECOND, t1Indexes.get(0).getTimeCode());
+    assertEquals(new TimeCode(1, 7, 45), t1Indexes.get(1).getTimeCode());
+
+    assertEquals(new TimeCode(12, 13, 62), t2Indexes.get(0).getTimeCode());
+    assertEquals(new TimeCode(33, 15, 35), t2Indexes.get(1).getTimeCode());
+  }
+
+  @Test
+  void should_not_be_lenient_on_isrc() {
+    CueSheetReader cueSheetReader = new CueSheetReader();
+    CueOptions options = new CueOptions(StandardCharsets.UTF_8);
+    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> cueSheetReader.readCueSheet(isrcCueUrl, options));
+    assertEquals("ISRC read: WHATEVER. Must use the CCOOOYYSSSSS format: https://en.wikipedia.org/wiki/International_Standard_Recording_Code", iae.getMessage());
+  }
+
+  @Test
+  void should_be_lenient_on_isrc() throws IOException {
+    CueSheetReadout readout = new CueSheetReader().readCueSheet(isrcCueUrl, CueOptions.builder().isrcLeniency(true).build());
+    CueFile file = readout.getDisc().getFirstFile();
+    assertEquals(2, file.getTrackCount());
+    assertEquals("WHATEVER", file.getFirstTrack().getIsrc());
+    assertNull(file.getLastTrack().getIsrc());
   }
 }

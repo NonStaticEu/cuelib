@@ -11,6 +11,11 @@ package eu.nonstatic.audio;
 
 import java.net.URL;
 
+/**
+ * Those samples are taken from here:
+ * https://en.wikipedia.org/wiki/Synthesizer
+ * https://commons.wikimedia.org/wiki/File:Amplitudenmodulation.ogg
+ */
 public interface AudioTestBase {
 
   String AIFF_NAME = "/audio/Arpeggio.aiff";

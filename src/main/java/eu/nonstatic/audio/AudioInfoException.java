@@ -7,25 +7,34 @@
  *  is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * You should have received a copy of the GNU General Public License along with . If not, see <https://www.gnu.org/licenses/>.
  */
-package eu.nonstatic.cue;
+package eu.nonstatic.audio;
 
-import java.time.Duration;
-import lombok.AllArgsConstructor;
+import java.util.Collections;
+import java.util.List;
 import lombok.Getter;
 
-@Getter
-@AllArgsConstructor
-public class TooMuchDataException extends RuntimeException {
+public class AudioInfoException extends Exception {
 
-  private final long maxSize;
-  private final long actualSize;
+  @Getter
+  private final String name;
+  private final List<AudioIssue> issues;
 
-  public Duration getMaxDuration() {
-    return SizeAndDuration.getDurationFromCompactDiscBytes(maxSize);
+  public AudioInfoException(String name, Throwable cause) {
+    this(name, List.of(), cause);
+  }
+
+  public AudioInfoException(String name, List<AudioIssue> issues, Throwable cause) {
+    super(cause);
+    this.name = name;
+    this.issues = issues;
+  }
+
+  public List<AudioIssue> getIssues() {
+    return Collections.unmodifiableList(issues);
   }
 
   @Override
   public String getMessage() {
-    return "Max duration: " + getMaxDuration() + ", max size: " + maxSize + " > Actual size: " + actualSize;
+    return name + ": " + super.getMessage();
   }
 }

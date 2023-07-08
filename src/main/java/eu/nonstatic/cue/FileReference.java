@@ -10,12 +10,19 @@
 package eu.nonstatic.cue;
 
 import static eu.nonstatic.cue.CueTools.getExt;
-import static eu.nonstatic.cue.CueTools.unquote;
+import static eu.nonstatic.cue.SizeAndDuration.getCompactDiscBytesFrom;
 
+import eu.nonstatic.audio.AiffInfoSupplier;
+import eu.nonstatic.audio.AudioInfo;
+import eu.nonstatic.audio.AudioInfoException;
+import eu.nonstatic.audio.AudioInfoSupplier;
+import eu.nonstatic.audio.FlacInfoSupplier;
+import eu.nonstatic.audio.Mp3InfoSupplier;
+import eu.nonstatic.audio.WaveInfoSupplier;
 import java.io.File;
-import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import lombok.EqualsAndHashCode;
@@ -27,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * This class is meant to be immutable and shareable between copies of a CueFile.
- * IOW a track-free CueFile
+ * In other words: a track-free CueFile
  */
 @Slf4j
 @Getter
@@ -44,6 +51,17 @@ class FileReference implements FileReferable {
       "flac", FileType.Audio.FLAC
   );
 
+  private static final Map<String, ? extends AudioInfoSupplier<?>> AUDIO_INFO_SUPPLIERS = Map.of(
+      "aif",  new AiffInfoSupplier(),
+      "aiff", new AiffInfoSupplier(),
+      "wav",  new WaveInfoSupplier(),
+      "wave", new WaveInfoSupplier(),
+      "mp3",  new Mp3InfoSupplier(),
+      "mp2",  new Mp3InfoSupplier(),
+      "flac", new FlacInfoSupplier()
+  );
+
+
 
   protected final String file; // might be a filename, if the file in the same dir as the cuesheet, or may be a path
   protected final FileType type; // MP3, AIFF, WAVE, BIN, MOTOROLA
@@ -53,95 +71,80 @@ class FileReference implements FileReferable {
    * Simple ctor when we know only the bare minimum
    */
   public FileReference(String fileNameOrFilePath, FileType type) {
+    this(fileNameOrFilePath, type, null);
+  }
+
+  public FileReference(@NonNull String fileNameOrFilePath, @NonNull FileType type, SizeAndDuration sizeDuration) {
     this.file = fileNameOrFilePath;
     this.type = type;
+    this.sizeDuration = sizeDuration;
   }
 
-  public FileReference(File file, TimeCodeRounding rounding) {
-    this(file.toPath(), rounding);
+  public FileReference(File file, CueSheetContext context) {
+    this(file.toPath(), context);
   }
 
-  /**
-   * @param file
-   * @param type only Data subtype allowed for explicit assignment, else audio type will have to be detected
-   */
-  public FileReference(File file, FileType.Data type) {
-    this(file.toPath(), type);
+  public FileReference(File file, FileType type, CueSheetContext context) {
+    this(file.toPath(), type, context);
   }
 
-  public FileReference(Path file, TimeCodeRounding rounding) {
-    this(file, detectTypeByExtension(file.getFileName().toString()), rounding, false);
+  public FileReference(Path file, CueSheetContext context) {
+    this(file, getFileTypeByFileName(file.getFileName().toString()), context);
   }
 
-  /**
-   * @param file
-   * @param type only Data subtype allowed for explicit assignment, else audio type will have to be detected
-   */
-  public FileReference(Path file, FileType.Data type) {
-    this(file, type, null, false);
-  }
-
-  /**
-   * Private because unsafe wrt type
-   */
-  @SneakyThrows
-  private FileReference(Path file, FileType type, TimeCodeRounding rounding, boolean fileLeniency) {
-    this(file.toString(), type);
-    try {
-      this.sizeDuration = new SizeAndDuration(file, rounding, type.isData());
-    } catch (IOException e) {
-      if(!fileLeniency) {
-        throw e;
-      }
-    }
-  }
-
-  public static FileType detectTypeByExtension(String fileName) {
-    String ext = getExt(fileName);
-    return Objects.requireNonNullElse(AUDIO_TYPES.get(ext), FileType.Data.BINARY);
+  public FileReference(Path file, FileType type, CueSheetContext context) {
+    this(file.toString(), type, sizeAndDurationOf(file, type, context));
   }
 
   @Override
   public void setSizeAndDuration(SizeAndDuration sizeAndDuration) {
-    this.sizeDuration = sizeAndDuration;
+    this.sizeDuration = sizeAndDuration; // TODO check consistency with type
   }
 
-  /**
-   * @param fileAndFormat "\"my file.wav\" WAVE" if the cue sheet contains "FILE \"my file.wav\" WAVE"
-   * @param context
-   * @return
-   */
-  static FileReference parse(@NonNull String fileAndFormat, CueReadContext context) {
-    String fileName;
-    FileType fileType;
-    int sep = fileAndFormat.lastIndexOf(' ');
-    if (sep >= 0 && fileAndFormat.indexOf('"', sep) < 0) { // checking we aren't going to cut a part of the file name
-      fileName = unquote(fileAndFormat.substring(0, sep).trim());
-      String type = fileAndFormat.substring(sep + 1);
-      fileType = FileType.of(type);
-    } else {
-      fileName = unquote(fileAndFormat.trim());
-      fileType = detectTypeByExtension(fileName);
-    }
 
-    // parent may be null if we're loading the file from a stream or the network
-    // fileName may be a filename or a complete path
-    return fromParentDir(fileName, fileType, context);
+  public static FileType getFileTypeByFileName(String fileName) {
+    String ext = getExt(fileName);
+    return getFileTypeByExtension(ext);
   }
+
+  public static FileType getFileTypeByExtension(String ext) {
+    return Objects.requireNonNullElse(AUDIO_TYPES.get(ext), FileType.Data.BINARY);
+  }
+
+  public static AudioInfoSupplier<?> getInfoSupplierByFileName(String fileName) {
+    String ext = getExt(fileName);
+    return getInfoSupplierByExtension(ext);
+  }
+
+  public static AudioInfoSupplier<?> getInfoSupplierByExtension(String ext) {
+    return AUDIO_INFO_SUPPLIERS.get(ext);
+  }
+
 
   @SneakyThrows
-  private static FileReference fromParentDir(String fileOrFileName, FileType fileType, CueReadContext context) {
-    Path dir = context.getParent();
-    if(dir == null ) { // let's set what we can
-      return new FileReference(fileOrFileName, fileType);
+  public static SizeAndDuration sizeAndDurationOf(Path file, FileType type, CueSheetContext context) {
+    CueOptions options = context.getOptions();
+    SizeAndDuration sizeDuration = null;
+    try {
+      AudioInfoSupplier<?> audioInfoSupplier = getInfoSupplierByFileName(file.getFileName().toString());
+      if(audioInfoSupplier != null && type.isAudio()) {
+        AudioInfo audioInfos = audioInfoSupplier.getInfos(file);
+        Duration duration = audioInfos.getDuration();
+        long size = getCompactDiscBytesFrom(duration, options.getRounding());
+        sizeDuration = new SizeAndDuration(size, duration);
+        audioInfos.getIssues().forEach(issue -> context.addError(issue.toString()));
+      } else {
+        sizeDuration = new SizeAndDuration(Files.size(file));
+      }
+    /* TODO useful ?
+    } catch (UnsupportedEncodingException e) {
+    if(!options.isFileLeniency()) {
+      throw e;
     }
-
-    Path filePath = Paths.get(fileOrFileName);
-    if(filePath.getNameCount() == 1) { // just a file name
-      filePath = dir.resolve(fileOrFileName);
+    */
+    } catch (AudioInfoException e) {
+      e.getIssues().forEach(issue -> context.addError(issue.toString()));
     }
-
-    CueReadOptions options = context.getOptions();
-    return new FileReference(filePath, fileType, options.getRounding(), options.isFileLeniency());
+    return sizeDuration;
   }
 }

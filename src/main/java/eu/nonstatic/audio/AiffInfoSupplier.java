@@ -13,7 +13,9 @@ import eu.nonstatic.audio.AiffInfoSupplier.AiffInfo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.List;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -22,10 +24,12 @@ public class AiffInfoSupplier implements AudioInfoSupplier<AiffInfo> {
   /**
    * https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/AIFF/Docs/AIFF-1.3.pdf
    */
-  public AiffInfo getInfos(InputStream is, String name) throws IOException {
+  public AiffInfo getInfos(InputStream is, String name) throws AudioInfoException {
     try (AudioInputStream ais = new AudioInputStream(is, name)) {
       checkHeader(ais);
       return readInfos(ais);
+    } catch (IOException e) {
+      throw new AudioInfoException(name, e);
     }
   }
 
@@ -61,7 +65,7 @@ public class AiffInfoSupplier implements AudioInfoSupplier<AiffInfo> {
     }
   }
 
-  @Builder
+  @Getter @Builder
   public static class AiffInfo implements AudioInfo {
     private short numChannels;
     private double frameRate;
@@ -71,6 +75,11 @@ public class AiffInfoSupplier implements AudioInfoSupplier<AiffInfo> {
     @Override
     public Duration getDuration() {
       return Duration.ofMillis(Math.round((numFrames * 1000.0) / frameRate));
+    }
+
+    @Override
+    public List<AudioIssue> getIssues() {
+      return List.of();
     }
   }
 }

@@ -96,4 +96,46 @@ class AudioInputStreamTest {
       assertEquals(0xDECAFACE, ais.read32bitBE());
     }
   }
+
+  @Test
+  void should_provide_location() throws IOException {
+    try(AudioInputStream ais = new AudioInputStream(new ByteArrayInputStream(INTEGRAL_DATA), "data")) {
+      // simple read
+      ais.read();
+      assertEquals(1, ais.location());
+
+      // array read
+      ais.mark(6);
+      assertEquals(1, ais.location());
+      ais.read(new byte[4]);
+      assertEquals(5, ais.location());
+      ais.reset();
+      assertEquals(1, ais.location());
+
+      // array N read
+      ais.mark(2);
+      ais.readNBytes(2);
+      assertEquals(3, ais.location());
+      ais.reset();
+      assertEquals(1, ais.location());
+
+      // array N read offset
+      ais.mark(10);
+      ais.readNBytes(new byte[10], 3, 7);
+      assertEquals(8, ais.location()); // end of stream
+      ais.reset();
+      assertEquals(1, ais.location());
+
+      // skip
+      ais.skip(3);
+      assertEquals(4, ais.location());
+
+      // skip N
+      ais.mark(5);
+      ais.skipNBytesBeforeJava12(2);
+      assertEquals(6, ais.location());
+      ais.reset();
+      assertEquals(4, ais.location());
+    }
+  }
 }

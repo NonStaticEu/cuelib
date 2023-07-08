@@ -13,7 +13,9 @@ import eu.nonstatic.audio.FlacInfoSupplier.FlacInfo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.List;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -24,10 +26,12 @@ public class FlacInfoSupplier implements AudioInfoSupplier<FlacInfo> {
   /**
    * https://xiph.org/flac/format.html#metadata_block_streaminfo
    */
-  public FlacInfo getInfos(InputStream is, String name) throws IOException {
+  public FlacInfo getInfos(InputStream is, String name) throws AudioInfoException {
     try (AudioInputStream ais = new AudioInputStream(is, name)) {
       checkHeader(ais);
       return readInfos(ais);
+    } catch (IOException e) {
+      throw new AudioInfoException(name, e);
     }
   }
 
@@ -63,7 +67,7 @@ public class FlacInfoSupplier implements AudioInfoSupplier<FlacInfo> {
 
 
 
-  @Builder
+  @Getter @Builder
   public static class FlacInfo implements AudioInfo {
     private int numChannels;
     private int frameRate;
@@ -73,6 +77,11 @@ public class FlacInfoSupplier implements AudioInfoSupplier<FlacInfo> {
     @Override
     public Duration getDuration() {
       return Duration.ofMillis(Math.round((numFrames * 1000.0) / frameRate));
+    }
+
+    @Override
+    public List<AudioIssue> getIssues() {
+      return List.of();
     }
   }
 }

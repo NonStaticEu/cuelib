@@ -28,9 +28,12 @@ import lombok.Getter;
  * x86 is little endian (LE)
  * 68k is big endian (BE)
  */
-@Getter
 public class AudioInputStream extends BufferedInputStream {
+  @Getter
   protected final String name;
+  private long location;
+  private long markedAt;
+
 
   public AudioInputStream(File file) throws IOException {
     this(file.toPath());
@@ -111,5 +114,45 @@ public class AudioInputStream extends BufferedInputStream {
         throw new IOException("Unable to skip exactly");
       }
     }
+  }
+
+  public long location() {
+    return location;
+  }
+
+  // Those delegates just to update the location
+
+  @Override
+  public synchronized int read() throws IOException {
+    int read = super.read();
+    this.location++;
+    return read;
+  }
+
+  @Override
+  public synchronized int read(byte[] b, int off, int len) throws IOException {
+    int read = super.read(b, off, len);
+    this.location += read;
+    return read;
+  }
+
+  @Override
+  public synchronized long skip(long n) throws IOException {
+    long skipped = super.skip(n);
+    this.location += skipped;
+    return skipped;
+  }
+
+  @Override
+  public synchronized void mark(int readlimit) {
+    super.mark(readlimit);
+    this.markedAt = location();
+  }
+
+  @Override
+  public synchronized void reset() throws IOException {
+    super.reset();
+    this.location = markedAt;
+    this.markedAt = -1;
   }
 }

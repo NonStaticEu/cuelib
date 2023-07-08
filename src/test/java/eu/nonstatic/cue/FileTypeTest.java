@@ -9,23 +9,21 @@
  */
 package eu.nonstatic.cue;
 
-import java.time.Duration;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@Getter
-@AllArgsConstructor
-public class TooMuchDataException extends RuntimeException {
+import eu.nonstatic.cue.FileType.Data;
+import org.junit.jupiter.api.Test;
 
-  private final long maxSize;
-  private final long actualSize;
+class FileTypeTest {
 
-  public Duration getMaxDuration() {
-    return SizeAndDuration.getDurationFromCompactDiscBytes(maxSize);
+  @Test
+  void should_infer_binary_on_null_type() {
+    assertEquals(Data.BINARY, FileType.of(null));
   }
 
-  @Override
-  public String getMessage() {
-    return "Max duration: " + getMaxDuration() + ", max size: " + maxSize + " > Actual size: " + actualSize;
+  @Test
+  void should_throw_on_unknown_type() {
+    assertThrows(IllegalArgumentException.class, () -> FileType.of("whatever"));
   }
 }

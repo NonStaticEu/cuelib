@@ -9,6 +9,7 @@ TITLE "Some title"
 SONGWRITER "Some writer"
 CATALOG "0696969424242"
 CDTEXTFILE "cdtextfile"
+SINGLEWORD
 UNKNOWN "ThiNG"
 FILE "some file 1.mp3" MP3
   TRACK 01 AUDIO

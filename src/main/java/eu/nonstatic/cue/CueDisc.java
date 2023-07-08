@@ -9,17 +9,22 @@
  */
 package eu.nonstatic.cue;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * https://en.wikipedia.org/wiki/Cue_sheet_(computing)
@@ -171,10 +176,6 @@ public class CueDisc implements CueIterable<CueFile> {
       fileCopy.addTrack(track);
     }
     addFileUnsafe(idx, fileCopy);
-
-    if(file.isSizeAndDurationSet()) {
-      fileCopy.setSizeAndDuration(new SizeAndDuration(file.getSizeDuration()));
-    }
 
     return fileCopy;
   }
@@ -551,7 +552,7 @@ public class CueDisc implements CueIterable<CueFile> {
   public long getSizeOnDisc() {
     // Initial mandatory lead-in as per specification EVEN if there is a cuefile pregap or a hidden track
     // (the lead in is actually silence with the TOC as subcode)
-    long totalSize = SizeAndDuration.getCompactDiscBytesFor(DURATION_LEAD_IN, TimeCodeRounding.CLOSEST);
+    long totalSize = SizeAndDuration.getCompactDiscBytesFrom(DURATION_LEAD_IN, TimeCodeRounding.CLOSEST);
 
     for (CueFile file : files) {
       Optional<Long> size = Optional.ofNullable(file.fileReference.sizeDuration).map(sd -> sd.size);
@@ -566,11 +567,11 @@ public class CueDisc implements CueIterable<CueFile> {
       for (CueTrack cueTrack : file) {
         TimeCode preGap = cueTrack.getPreGap();
         if(preGap != null) {
-          totalSize += SizeAndDuration.getCompactDiscBytesFor(preGap);
+          totalSize += SizeAndDuration.getCompactDiscBytesFrom(preGap);
         }
         TimeCode postGap = cueTrack.getPostGap();
         if(postGap != null) {
-          totalSize += SizeAndDuration.getCompactDiscBytesFor(postGap);
+          totalSize += SizeAndDuration.getCompactDiscBytesFrom(postGap);
         }
       }
     }

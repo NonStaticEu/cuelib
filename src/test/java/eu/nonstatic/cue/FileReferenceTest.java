@@ -25,11 +25,11 @@ import org.junit.jupiter.api.Test;
 class FileReferenceTest extends CueTestBase {
 
   static final String tempDir = System.getProperty("java.io.tmpdir");
-  static final CueReadContext context;
+  static final CueSheetContext context;
 
   static {
-    CueReadOptions options = new CueReadOptions(StandardCharsets.UTF_8);
-    context = new CueReadContext(Paths.get(tempDir).resolve("testcue.cue"), options);
+    CueOptions options = new CueOptions(StandardCharsets.UTF_8);
+    context = new CueSheetContext(Paths.get(tempDir).resolve("testcue.cue"), options);
   }
 
   @Test
@@ -37,7 +37,7 @@ class FileReferenceTest extends CueTestBase {
     Path audioFile = Files.createTempFile("my file", ".wav");
     String audioFileName = copyFileContents(WAVE_URL, audioFile).getFileName().toString();
 
-    FileReference fileReference = FileReference.parse(String.format("\"%s\" WAVE", audioFileName), context);
+    FileReference fileReference = CueFile.parse(String.format("\"%s\" WAVE", audioFileName), context);
     Files.delete(audioFile);
 
     assertEquals(audioFile.toString(), fileReference.file);
@@ -50,7 +50,7 @@ class FileReferenceTest extends CueTestBase {
     Path audioFile = Files.createTempFile("my file", ".aiff");
     String audioFileName = copyFileContents(AIFF_URL, audioFile).getFileName().toString();
 
-    FileReference fileReference = FileReference.parse(String.format("%s AIFF", audioFileName), context);
+    FileReference fileReference = CueFile.parse(String.format("%s AIFF", audioFileName), context);
     Files.delete(audioFile);
 
     assertEquals(audioFile.toString(), fileReference.file);
@@ -63,7 +63,7 @@ class FileReferenceTest extends CueTestBase {
     Path audioFile = Files.createTempFile("my file", ".aiff");
     String audioFilePath = copyFileContents(AIFF_URL, audioFile).toString();
 
-    FileReference fileReference = FileReference.parse(String.format("%s AIFF", audioFilePath), context);
+    FileReference fileReference = CueFile.parse(String.format("%s AIFF", audioFilePath), context);
     Files.delete(audioFile);
 
     assertEquals(audioFile.toString(), fileReference.file);
@@ -73,20 +73,68 @@ class FileReferenceTest extends CueTestBase {
 
   @Test
   void should_parse_not_compliant() {
-    FileReference fileReference = FileReference.parse("\"my file.mp3\"", new CueReadContext("my file.cue", null));
+    FileReference fileReference = CueFile.parse("\"my file.mp3\"", new CueSheetContext("my file.cue", null));
     assertEquals("my file.mp3", fileReference.file);
     assertEquals(Audio.MP3, fileReference.type);
   }
 
   @Test
   void should_detect_audio() {
-    FileType fileType = FileReference.detectTypeByExtension("my file.mp3");
+    FileType fileType = FileReference.getFileTypeByFileName("my file.mp3");
     assertEquals(FileType.Audio.MP3, fileType);
   }
 
   @Test
   void should_detect_other() {
-    FileType fileType = FileReference.detectTypeByExtension("my file.xyz");
+    FileType fileType = FileReference.getFileTypeByFileName("my file.xyz");
     assertEquals(FileType.Data.BINARY, fileType);
   }
+
+  /*
+  @Test
+  void should_get_from_audio_file() throws IOException {
+    Path audioFile = Files.createTempFile("my file", ".flac");
+    copyFileContents(FLAC_URL, audioFile);
+    SizeAndDuration sd = new SizeAndDuration(audioFile.toFile(), TimeCodeRounding.DOWN);
+    Files.delete(audioFile);
+
+    assertEquals(649152L, sd.size);
+    assertEquals(Duration.ofMillis(3692L), sd.duration);
+  }
+
+  @Test
+  void should_get_from_audio_path() throws IOException {
+    Path audioFile = Files.createTempFile("my file", ".flac");
+    copyFileContents(FLAC_URL, audioFile);
+    SizeAndDuration sd = new SizeAndDuration(audioFile, TimeCodeRounding.DOWN);
+    Files.delete(audioFile);
+
+    assertEquals(649152L, sd.size);
+    assertEquals(Duration.ofMillis(3692L), sd.duration);
+  }
+
+  @Test
+  void should_get_from_binary_path() throws IOException {
+    Path binFile = Files.createTempFile("my file", ".bin");
+    try(BufferedWriter bw = Files.newBufferedWriter(binFile)) {
+      bw.append("You're never gonna figure out who's on first base, because Who is on first base.");
+    }
+    SizeAndDuration sd = new SizeAndDuration(binFile, TimeCodeRounding.DOWN);
+    Files.delete(binFile);
+
+    assertEquals(80L, sd.size);
+    assertNull(sd.duration);
+  }
+
+  @Test
+  void should_force_binary() throws IOException {
+    Path audioFile = Files.createTempFile("my file", ".flac");
+    copyFileContents(FLAC_URL, audioFile);
+    SizeAndDuration sd = new SizeAndDuration(audioFile, TimeCodeRounding.DOWN, true);
+    Files.delete(audioFile);
+
+    assertEquals(484667L, sd.size);
+    assertNull(sd.duration);
+  }
+   */
 }

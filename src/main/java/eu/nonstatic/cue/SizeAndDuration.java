@@ -9,17 +9,9 @@
  */
 package eu.nonstatic.cue;
 
-import eu.nonstatic.audio.*;
-import lombok.Getter;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Map;
-
-import static eu.nonstatic.cue.CueTools.getExt;
+import lombok.Getter;
+import lombok.NonNull;
 
 @Getter
 public class SizeAndDuration {
@@ -36,74 +28,42 @@ public class SizeAndDuration {
   public static final long CD_BYTES_PER_SECOND = (CD_FREQUENCY * CD_BITS_PER_SAMPLE * CD_CHANNELS) / BITS_PER_BYTE; // 176400 bytes / sec
   public static final long CD_BYTES_PER_FRAME = CD_BYTES_PER_SECOND / CD_FRAMES_PER_SECOND; // 2352 bytes
 
-  private static final Map<String, ? extends AudioInfoSupplier<?>> AUDIO_INFO_SUPPLIERS = Map.of(
-      "aif",  new AiffInfoSupplier(),
-      "aiff", new AiffInfoSupplier(),
-      "wav",  new WaveInfoSupplier(),
-      "wave", new WaveInfoSupplier(),
-      "mp3",  new Mp3InfoSupplier(),
-      "mp2",  new Mp3InfoSupplier(),
-      "flac", new FlacInfoSupplier()
-  );
 
-  protected final Long size; // (projected) file size *on the CD* to check if the cuesheet fits on a CD(R)
-  protected final Duration duration; // only for an audio file, so we can calculate the last track's duration
+  protected Long size; // (projected) file size *on the CD* to check if the cuesheet fits on a CD(R)
+  protected Duration duration; // only for an audio file, so we can calculate the last track's duration
 
 
   public SizeAndDuration(long size) {
-    this.size = size;
-    this.duration = null;
-  }
-
-  public SizeAndDuration(Duration duration, TimeCodeRounding rounding) {
-    this.size = getCompactDiscBytesFor(duration, rounding);
-    this.duration = duration;
-  }
-
-  public SizeAndDuration(SizeAndDuration sizeAndDuration) {
-    this.size = sizeAndDuration.size;
-    this.duration = sizeAndDuration.duration;
-  }
-
-  public SizeAndDuration(File file, TimeCodeRounding rounding) throws IOException {
-    this(file, rounding, false);
-  }
-
-  public SizeAndDuration(File file, TimeCodeRounding rounding, boolean forceBinary) throws IOException {
-    this(file.toPath(), rounding, forceBinary);
-  }
-
-  public SizeAndDuration(Path file, TimeCodeRounding rounding) throws IOException {
-    this(file, rounding, false);
-  }
-
-  public SizeAndDuration(Path file, TimeCodeRounding rounding, boolean forceBinary) throws IOException {
-    String ext = getExt(file.getFileName().toString());
-    AudioInfoSupplier<?> audioInfoSupplier = AUDIO_INFO_SUPPLIERS.get(ext);
-    if(audioInfoSupplier != null && !forceBinary) {
-      AudioInfo audioInfos = audioInfoSupplier.getInfos(file);
-      this.duration = audioInfos.getDuration();
-      this.size = getCompactDiscBytesFor(this.duration, rounding);
-    } else {
-      this.duration = null;
-      this.size = Files.size(file);
-    }
+    this(size, null);
   }
 
   /**
-   * Transforms an (audio) duration into frame-aligned bytes on a CDR (each frame being 1/75th of a second, that is 2352 bytes)
-   * @param duration
-   * @return bytes on disc
+   * protected: don't want anyone to mess with unrelated values
    */
-  public static long getCompactDiscBytesFor(Duration duration, TimeCodeRounding rounding) {
-    return getCompactDiscBytesFor(new TimeCode(duration, rounding));
+  protected SizeAndDuration(@NonNull Long size, Duration duration) {
+    this.size = size;
+    this.duration = duration;
   }
 
-  public static long getCompactDiscBytesFor(TimeCode timeCode) {
+  public SizeAndDuration(Duration duration, TimeCodeRounding rounding) {
+    this(getCompactDiscBytesFrom(duration, rounding), duration);
+  }
+
+
+  /**
+   * Transforms an (audio) duration into frame-aligned bytes on a CDR (each frame being 1/75th of a second, that is 2352 bytes)
+   * @param duration audio duration
+   * @return bytes on disc
+   */
+  public static long getCompactDiscBytesFrom(Duration duration, TimeCodeRounding rounding) {
+    return getCompactDiscBytesFrom(new TimeCode(duration, rounding));
+  }
+
+  public static long getCompactDiscBytesFrom(TimeCode timeCode) {
     return timeCode.toFrameCount() * CD_BYTES_PER_FRAME;
   }
 
-  public static Duration getDurationForCompactDiscBytes(long bytes) {
+  public static Duration getDurationFromCompactDiscBytes(long bytes) {
     return Duration.ofNanos((bytes * NANOS_PER_SECOND) / CD_BYTES_PER_SECOND);
   }
 }

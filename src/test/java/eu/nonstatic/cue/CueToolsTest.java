@@ -142,9 +142,9 @@ class CueToolsTest {
     String moreThanMaxLengthField = makeString(MAX_CDTEXT_FIELD_LENGTH+1);
     assertThrows(IllegalArgumentException.class, () -> CueTools.validateLength("field", moreThanMaxLengthField, 0, MAX_CDTEXT_FIELD_LENGTH, false, false));
 
-    String spacedMAxLengthField = "   " + maxLengthField + "   ";
-    assertEquals(MAX_CDTEXT_FIELD_LENGTH, CueTools.validateLength("field", spacedMAxLengthField, 0, MAX_CDTEXT_FIELD_LENGTH, true, false).length());
-    assertThrows(IllegalArgumentException.class, () -> CueTools.validateLength("field", spacedMAxLengthField, 0, MAX_CDTEXT_FIELD_LENGTH, false, false));
+    String spacedMaxLengthField = "   " + maxLengthField + "   ";
+    assertEquals(MAX_CDTEXT_FIELD_LENGTH, CueTools.validateLength("field", spacedMaxLengthField, 0, MAX_CDTEXT_FIELD_LENGTH, true, false).length());
+    assertThrows(IllegalArgumentException.class, () -> CueTools.validateLength("field", spacedMaxLengthField, 0, MAX_CDTEXT_FIELD_LENGTH, false, false));
   }
 
   private static String makeString(int length) {

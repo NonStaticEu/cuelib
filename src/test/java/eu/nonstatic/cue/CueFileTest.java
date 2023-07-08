@@ -9,11 +9,21 @@
  */
 package eu.nonstatic.cue;
 
+import static eu.nonstatic.audio.AudioTestBase.MP3_NAME;
+import static eu.nonstatic.cue.CueTestBase.copyFileContents;
+import static eu.nonstatic.cue.CueTestBase.deleteRecursive;
+import static eu.nonstatic.cue.SizeAndDuration.CD_BYTES_PER_FRAME;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import eu.nonstatic.audio.AudioTestBase;
 import eu.nonstatic.cue.CueIterable.CueIterator;
 import eu.nonstatic.cue.FileType.Data;
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,12 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import static eu.nonstatic.audio.AudioTestBase.MP3_NAME;
-import static eu.nonstatic.cue.CueTestBase.copyFileContents;
-import static eu.nonstatic.cue.CueTestBase.deleteRecursive;
-import static eu.nonstatic.cue.SizeAndDuration.CD_BYTES_PER_FRAME;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class CueFileTest {
 
@@ -39,7 +44,9 @@ class CueFileTest {
     TimeCode indexTimeCode = TimeCode.TWO_SECONDS;
     Duration mp3Duration = Duration.ofNanos(11154285714L);
 
-    CueFile cueFile1 = new CueFile(path.toFile(), TimeCodeRounding.DOWN);
+    CueSheetContext context = new CueSheetContext(path, new CueOptions(null));
+
+    CueFile cueFile1 = new CueFile(path.toFile(), context);
     cueFile1.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(indexTimeCode)));
     assertTrue(cueFile1.isAudio());
     assertTrue(cueFile1.isSizeAndDurationSet());
@@ -48,7 +55,7 @@ class CueFileTest {
     assertEquals(mp3Duration.minus(indexTimeCode.toDuration()), cueFile1.getTrackDuration(0)); // index here not track number. Duration excludes the time before the first index
 
 
-    CueFile cueFile2 = new CueFile(path.toFile(), Data.BINARY);
+    CueFile cueFile2 = new CueFile(path.toFile(), Data.BINARY, context);
     assertFalse(cueFile2.isAudio());
     assertTrue(cueFile2.isSizeAndDurationSet());
     assertEquals(210469L, cueFile2.getSizeDuration().getSize()); // binary size
@@ -59,18 +66,14 @@ class CueFileTest {
     assertNull(cueFile2.getTrackDuration(0)); // index here not track number
     assertNull(cueFile2.getTrackDuration(1)); // index here not track number
 
-    // coverage
-    CueFile cueFile3 = new CueFile(path, TimeCodeRounding.DOWN);
-    CueFile cueFile4 = new CueFile(path, Data.MOTOROLA);
-
     deleteRecursive(tempDir);
   }
 
   @Test
   void should_initialize_with_empty_file() throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
-    CueFile file = new CueFile((String)null, null);
-    assertNull(file.getFile());
-    assertNull(file.getType());
+    CueFile file = new CueFile("somefile", FileType.Audio.WAVE);
+    assertEquals("somefile", file.getFile());
+    assertEquals(FileType.Audio.WAVE, file.getType());
 
     assertEquals(0, file.getTrackCount());
     assertEquals(0, file.getTracks().size());

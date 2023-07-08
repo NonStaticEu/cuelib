@@ -164,7 +164,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
     if(lenient && rawFrames >= FRAMES_PER_SECOND) { // seems someone used hundredths of a second instead of frames!
       TimeCode result = new TimeCode(rawMinutes, rawSeconds, scale100to75(rawFrames), rawFrames);
-      log.warn("Leniency over {} parsing, using {} as frame part", timeCode, result.frames); //TODO add to context report
+      log.warn("Leniency over {} parsing, using {} as frame part", timeCode, result.frames); // TODO add to context report
       return result;
     } else {
       return new TimeCode(rawMinutes, rawSeconds, rawFrames);

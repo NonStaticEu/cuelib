@@ -12,12 +12,17 @@ package eu.nonstatic.cue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 class BomTest {
 
+  static final Random RANDOM = new Random();
   static URL url = CueDiscTest.class.getResource("/Bom Test.cue");
 
   @Test
@@ -33,4 +38,40 @@ class BomTest {
     assertNull(bom);
   }
 
+  // Useless but coverage likes it
+  @Test
+  void should_identify_UTF_8() throws IOException {
+    assertEquals(Bom.BOM_UTF_8, Bom.read(streamOf(Bom.BOM_UTF_8)));
+  }
+
+  @Test
+  void should_identify_UTF_16_LE() throws IOException {
+    assertEquals(Bom.BOM_UTF_16_LE, Bom.read(streamOf(Bom.BOM_UTF_16_LE)));
+  }
+
+  @Test
+  void should_identify_UTF_16_BE() throws IOException {
+    assertEquals(Bom.BOM_UTF_16_BE, Bom.read(streamOf(Bom.BOM_UTF_16_BE)));
+  }
+
+  @Test
+  void should_identify_UTF_32_LE() throws IOException {
+    assertEquals(Bom.BOM_UTF_32_LE, Bom.read(streamOf(Bom.BOM_UTF_32_LE)));
+  }
+
+  @Test
+  void should_identify_UTF_32_BE() throws IOException {
+    assertEquals(Bom.BOM_UTF_32_BE, Bom.read(streamOf(Bom.BOM_UTF_32_BE)));
+  }
+
+
+  private static InputStream streamOf(byte[] bytes) {
+    byte[] random = new byte[5];
+    RANDOM.nextBytes(random);
+
+    ByteBuffer bb = ByteBuffer.allocate(bytes.length + 5);
+    bb.put(bytes);
+    bb.put(random);
+    return new ByteArrayInputStream(bb.array());
+  }
 }

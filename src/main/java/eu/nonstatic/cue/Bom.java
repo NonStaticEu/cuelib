@@ -24,7 +24,6 @@ public final class Bom {
   protected static final byte[] BOM_UTF_32_BE = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF};
 
   static final int MAX_LENGTH_BYTES = 4;
-  static final int MAX_LENGTH_CHARS = 4; // we don't know how many bytes a char is here, let's assume the least: 1, so we read at least 4 bytes
 
   private Bom() {}
 

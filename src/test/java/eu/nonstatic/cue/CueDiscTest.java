@@ -277,7 +277,7 @@ class CueDiscTest extends CueTestBase {
   @Test
   void should_clear_files() {
     CueDisc disc = new CueDisc();
-    disc.addFile(new CueFile((String)null, null));
+    disc.addFile(new CueFile("whatever", FileType.Data.BINARY));
     assertEquals(1, disc.getFileCount());
 
     disc.clearFiles();
@@ -353,7 +353,7 @@ class CueDiscTest extends CueTestBase {
 
     FileReference fileReference = hiddenTrack.getFileAndFormat();
     assertEquals("file.aiff", fileReference.getFile());
-    assertEquals(FileType.Audio.AIFF, FileReference.detectTypeByExtension(fileReference.getFile()));
+    assertEquals(FileType.Audio.AIFF, FileReference.getFileTypeByFileName(fileReference.getFile()));
     assertEquals(actualTrack, hiddenTrack.getTrack());
     assertEquals(actualIndex0, hiddenTrack.getPreGapIndex());
     assertEquals(actualIndex1, disc.getHiddenTrack().getStartIndex());
@@ -427,7 +427,7 @@ class CueDiscTest extends CueTestBase {
 
   @Test
   void should_move_track_after() throws IOException {
-    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8).getDisc();
     CueTrack track2 = disc.getTrack(2);
     CueTrack track5 = disc.getTrack(5);
 
@@ -446,7 +446,7 @@ class CueDiscTest extends CueTestBase {
 
   @Test
   void should_move_track_before() throws IOException {
-    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8);
+    CueDisc disc = new CueSheetReader().readCueSheet(myTestUrl, StandardCharsets.UTF_8).getDisc();
     CueTrack track1 = disc.getTrack(1);
     CueTrack track2 = disc.getTrack(2);
     CueTrack track4 = disc.getTrack(4);

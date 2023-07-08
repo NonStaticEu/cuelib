@@ -9,14 +9,24 @@
  */
 package eu.nonstatic.cue;
 
-import eu.nonstatic.cue.CueTrack.TimeCodeValidation;
-import lombok.EqualsAndHashCode;
+import static eu.nonstatic.cue.CueTools.unquote;
 
+import eu.nonstatic.cue.CueTrack.TimeCodeValidation;
 import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.EqualsAndHashCode;
+import lombok.NonNull;
 
 @EqualsAndHashCode
 public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable {
@@ -50,20 +60,20 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
     tracks.forEach(this::addTrack);
   }
 
-  public CueFile(File file, TimeCodeRounding rounding) {
-    this(new FileReference(file, rounding));
+  public CueFile(File file, CueSheetContext context) {
+    this(file.toPath(), context);
   }
 
-  public CueFile(File file, FileType.Data type) {
-    this(new FileReference(file, type));
+  public CueFile(File file, FileType.Data type, CueSheetContext context) {
+    this(file.toPath(), type, context);
   }
 
-  public CueFile(Path file, TimeCodeRounding rounding) {
-    this(new FileReference(file, rounding));
+  public CueFile(Path file, CueSheetContext context) {
+    this(new FileReference(file, context));
   }
 
-  public CueFile(Path file, FileType.Data type) {
-    this(new FileReference(file, type));
+  public CueFile(Path file, FileType.Data type, CueSheetContext context) {
+    this(new FileReference(file, type, context));
   }
 
 
@@ -299,5 +309,43 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
   @Override
   public String toString() {
     return toSheetLine(TO_STRING_OPTIONS);
+  }
+
+
+  /**
+   * @param fileAndFormat "\"my file.wav\" WAVE" if the cue sheet contains "FILE \"my file.wav\" WAVE"
+   * @param context
+   * @return
+   */
+  static FileReference parse(@NonNull String fileAndFormat, CueSheetContext context) {
+    String fileName;
+    FileType fileType;
+    int sep = fileAndFormat.lastIndexOf(' ');
+    if (sep >= 0 && fileAndFormat.indexOf('"', sep) < 0) { // checking we aren't going to cut a part of the file name
+      fileName = unquote(fileAndFormat.substring(0, sep).trim());
+      String type = fileAndFormat.substring(sep + 1);
+      fileType = FileType.of(type);
+    } else {
+      fileName = unquote(fileAndFormat.trim());
+      fileType = FileReference.getFileTypeByFileName(fileName);
+    }
+
+    // parent may be null if we're loading the file from a stream or the network
+    // fileName may be a filename or a complete path
+    return fromParentDir(fileName, fileType, context);
+  }
+
+  private static FileReference fromParentDir(String fileOrFileName, FileType fileType, CueSheetContext context) {
+    Path dir = context.getParent();
+    if(dir == null ) { // let's set what we can
+      return new FileReference(fileOrFileName, fileType);
+    }
+
+    Path filePath = Paths.get(fileOrFileName);
+    if(filePath.getNameCount() == 1) { // just a file name
+      filePath = dir.resolve(fileOrFileName);
+    }
+
+    return new FileReference(filePath, fileType, context);
   }
 }

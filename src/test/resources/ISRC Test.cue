@@ -1,0 +1,11 @@
+FILE "some file 1.mp3" MP3
+  TRACK 01 AUDIO
+    TITLE "Title 1"
+    PERFORMER "Performer 1"
+    ISRC WHATEVER
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE Title 2
+    PERFORMER "Performer 2"
+    ISRC 000000000000
+    INDEX 01 00:00:00

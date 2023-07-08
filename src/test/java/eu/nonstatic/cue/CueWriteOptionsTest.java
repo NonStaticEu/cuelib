@@ -9,9 +9,12 @@
  */
 package eu.nonstatic.cue;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class CueWriteOptionsTest {
 
@@ -23,6 +26,6 @@ class CueWriteOptionsTest {
         assertFalse(defaults.isFullPaths());
         assertTrue(defaults.isOrderedTimeCodes());
         assertNull(defaults.getMinTrackDuration());
-        assertEquals(SizeAndDuration.getCompactDiscBytesFor(CueDisc.DURATION_80_MIN, null), defaults.getBurningLimit());
+        assertEquals(SizeAndDuration.getCompactDiscBytesFrom(CueDisc.DURATION_80_MIN, null), defaults.getBurningLimit());
     }
 }

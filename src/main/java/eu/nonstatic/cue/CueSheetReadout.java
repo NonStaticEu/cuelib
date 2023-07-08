@@ -9,36 +9,22 @@
  */
 package eu.nonstatic.cue;
 
-import java.nio.charset.Charset;
-import lombok.AccessLevel;
+import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
-@Getter @Builder
+@Getter
 @AllArgsConstructor
-public class CueReadOptions {
-  public static final TimeCodeRounding DEFAULT_ROUNDING = TimeCodeRounding.DOWN;
+public class CueSheetReadout {
+  private final CueDisc disc;
+  private final CueSheetContext context;
 
-  @Setter(AccessLevel.PACKAGE)
-  private Charset charset;
-  @NonNull @Builder.Default
-  private TimeCodeRounding rounding = DEFAULT_ROUNDING;
 
-  private boolean timeCodeLeniency;
-  private boolean isrcLeniency;
-  private boolean fileLeniency;
-
-  public CueReadOptions(Charset charset) {
-    this(charset, DEFAULT_ROUNDING);
+  public boolean isErrors() {
+    return context.isErrors();
   }
 
-  public CueReadOptions(Charset charset, TimeCodeRounding rounding) {
-    this.charset = charset;
-    this.rounding = rounding;
+  public List<String> getErrors() {
+    return context.getErrors();
   }
 }
