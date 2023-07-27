@@ -9,7 +9,7 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.audio.AudioTestBase.MP3_NAME;
+import static eu.nonstatic.cue.CueTestBase.MP3_URL;
 import static eu.nonstatic.cue.CueTestBase.copyFileContents;
 import static eu.nonstatic.cue.CueTestBase.deleteRecursive;
 import static eu.nonstatic.cue.SizeAndDuration.CD_BYTES_PER_FRAME;
@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.nonstatic.audio.AudioTestBase;
 import eu.nonstatic.cue.CueIterable.CueIterator;
 import eu.nonstatic.cue.FileType.Data;
 import java.io.IOException;
@@ -39,7 +38,7 @@ class CueFileTest {
   @Test
   void should_construct_cuefile() throws IOException {
     Path tempDir = Files.createTempDirectory("should_construct_cuefile");
-    Path path = copyFileContents(AudioTestBase.class.getResource(MP3_NAME), tempDir, "file.mp3");
+    Path path = copyFileContents(MP3_URL, tempDir, "file.mp3");
 
     TimeCode indexTimeCode = TimeCode.TWO_SECONDS;
     Duration mp3Duration = Duration.ofNanos(11154285714L);

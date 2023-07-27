@@ -9,6 +9,7 @@ group = "eu.nonstatic"
 version = "1.2.0"
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -19,6 +20,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
     implementation('com.ibm.icu:icu4j:73.2')
     implementation('org.slf4j:slf4j-api:2.0.5')
+    implementation('eu.nonstatic:audiolib:0.1.0')
     compileOnly("org.projectlombok:lombok:$lombokVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")

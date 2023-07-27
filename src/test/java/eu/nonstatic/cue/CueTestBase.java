@@ -31,6 +31,20 @@ abstract class CueTestBase {
 
   static URL myTestUrl = CueDiscTest.class.getResource("/My Test.cue");
 
+  /*
+   * Those samples are taken from here:
+   * https://en.wikipedia.org/wiki/Synthesizer
+   * https://commons.wikimedia.org/wiki/File:Amplitudenmodulation.ogg
+   */
+  static String AIFF_NAME = "/audio/Arpeggio.aiff";
+  static String WAVE_NAME = "/audio/Amplitudenmodulation.wav";
+  static String MP3_NAME = "/audio/Moog-juno-303-example.mp3";
+
+  static URL AIFF_URL = CueTestBase.class.getResource(AIFF_NAME);
+  static URL WAVE_URL = CueTestBase.class.getResource(WAVE_NAME);
+  static URL MP3_URL = CueTestBase.class.getResource(MP3_NAME);
+
+
   public static List<String> readLines(URL url, Charset cs) throws IOException {
     List<String> lines = new ArrayList<>();
     try(BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream(), cs))) {

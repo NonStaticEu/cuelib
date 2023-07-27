@@ -9,8 +9,6 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.audio.AudioTestBase.AIFF_URL;
-import static eu.nonstatic.audio.AudioTestBase.WAVE_URL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

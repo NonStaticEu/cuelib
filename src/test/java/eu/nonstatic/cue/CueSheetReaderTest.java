@@ -9,8 +9,6 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.audio.AudioTestBase.MP3_NAME;
-import static eu.nonstatic.audio.AudioTestBase.WAVE_NAME;
 import static eu.nonstatic.cue.CueFlag.DIGITAL_COPY_PERMITTED;
 import static eu.nonstatic.cue.CueFlag.FOUR_CHANNEL_AUDIO;
 import static eu.nonstatic.cue.CueFlag.PRE_EMPHASIS_ENABLED;
@@ -22,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.nonstatic.audio.AudioTestBase;
 import eu.nonstatic.cue.FileType.Audio;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -423,8 +420,8 @@ class CueSheetReaderTest extends CueTestBase {
     List<String> lines = readLines(myTestUrl, charset);
     writeLines(tempFile, lines, charset);
 
-    copyFileContents(AudioTestBase.class.getResource(MP3_NAME), tempDir, "some file 1.mp3");
-    copyFileContents(AudioTestBase.class.getResource(WAVE_NAME), tempDir, "some file 2.WAV");
+    copyFileContents(MP3_URL, tempDir, "some file 1.mp3");
+    copyFileContents(WAVE_URL, tempDir, "some file 2.WAV");
 
     try {
       CueSheetReader cueSheetReader = new CueSheetReader();
