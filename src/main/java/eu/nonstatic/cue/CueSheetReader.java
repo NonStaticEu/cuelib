@@ -206,7 +206,7 @@ public final class CueSheetReader {
       } catch(IOException e) {
         String message = String.format("Fallback to %s for %s: %s", fallbackCharset, context.getPath(), e.getMessage());
         log.warn(message, e);
-        context.addError(message);
+        context.addIssue(message);
         actualCharset = fallbackCharset;
       }
     }
@@ -279,11 +279,11 @@ public final class CueSheetReader {
           disc.addRemark(readRemark(line));
           break;
         default:
-          context.addError("%s#%s: Unknown disc line: %s", context.getPath(), line.getLineNumber(), line.getRaw());
+          context.addIssue("%s#%s: Unknown disc line: %s", context.getPath(), line.getLineNumber(), line.getRaw());
           disc.addOther(readOther(line));
       }
     } else {
-      context.addError(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
+      context.addIssue(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
     }
     return previousTrackNum;
   }
@@ -335,13 +335,13 @@ public final class CueSheetReader {
               file.renumberingNecessary = file.renumberingNecessary || (number != ++previousTrackNum);
               break;
             default:
-              context.addError("%S: Unknown file line: %S", context.getPath(), line.getRaw());
+              context.addIssue("%S: Unknown file line: %S", context.getPath(), line.getRaw());
               // maybe belongs to the upper level
               reader.reset();
               return file;
           }
         } else {
-          context.addError(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
+          context.addIssue(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
@@ -398,11 +398,11 @@ public final class CueSheetReader {
               track.addRemark(readRemark(line));
               break;
             default:
-              context.addError("%s#%S: Unknown track line: %s", context.getPath(), line.getLineNumber(), line.getRaw());
+              context.addIssue("%s#%S: Unknown track line: %s", context.getPath(), line.getLineNumber(), line.getRaw());
               track.addOther(readOther(line));
           }
         } else {
-          context.addError(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
+          context.addIssue(MESSAGE_NO_KEYWORD, context.getPath(), line.getLineNumber(), line.getRaw());
         }
       }
       reader.mark();
@@ -414,7 +414,7 @@ public final class CueSheetReader {
   private static void setIsrc(CueTrack track, String isrc, CueSheetContext context) {
     CueOptions options = context.getOptions();
     if(track.setIsrc(isrc, options.isIsrcLeniency())) {
-      context.addError(CueTrack.MESSAGE_BAD_ISRC, isrc);
+      context.addIssue(CueTrack.MESSAGE_BAD_ISRC, isrc);
     }
   }
 

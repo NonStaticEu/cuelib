@@ -38,11 +38,13 @@ abstract class CueTestBase {
    */
   static String AIFF_NAME = "/audio/Arpeggio.aiff";
   static String WAVE_NAME = "/audio/Amplitudenmodulation.wav";
-  static String MP3_NAME = "/audio/Moog-juno-303-example.mp3";
+  static String MP3_NAME  = "/audio/Moog-juno-303-example.mp3";
+  static String FLAC_NAME = "/audio/Filtered_envelope_sawtooth_moog.flac";
 
   static URL AIFF_URL = CueTestBase.class.getResource(AIFF_NAME);
   static URL WAVE_URL = CueTestBase.class.getResource(WAVE_NAME);
-  static URL MP3_URL = CueTestBase.class.getResource(MP3_NAME);
+  static URL MP3_URL  = CueTestBase.class.getResource(MP3_NAME);
+  static URL FLAC_URL = CueTestBase.class.getResource(FLAC_NAME);
 
 
   public static List<String> readLines(URL url, Charset cs) throws IOException {

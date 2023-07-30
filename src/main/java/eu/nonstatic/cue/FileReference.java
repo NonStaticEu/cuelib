@@ -20,6 +20,7 @@ import eu.nonstatic.audio.FlacInfoSupplier;
 import eu.nonstatic.audio.Mp3InfoSupplier;
 import eu.nonstatic.audio.WaveInfoSupplier;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -28,7 +29,6 @@ import java.util.Objects;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.SneakyThrows;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -80,19 +80,19 @@ class FileReference implements FileReferable {
     this.sizeDuration = sizeDuration;
   }
 
-  public FileReference(File file, CueSheetContext context) {
+  public FileReference(File file, CueSheetContext context) throws IOException {
     this(file.toPath(), context);
   }
 
-  public FileReference(File file, FileType type, CueSheetContext context) {
+  public FileReference(File file, FileType type, CueSheetContext context) throws IOException {
     this(file.toPath(), type, context);
   }
 
-  public FileReference(Path file, CueSheetContext context) {
+  public FileReference(Path file, CueSheetContext context) throws IOException {
     this(file, getFileTypeByFileName(file.getFileName().toString()), context);
   }
 
-  public FileReference(Path file, FileType type, CueSheetContext context) {
+  public FileReference(Path file, FileType type, CueSheetContext context) throws IOException {
     this(file.toString(), type, sizeAndDurationOf(file, type, context));
   }
 
@@ -121,29 +121,52 @@ class FileReference implements FileReferable {
   }
 
 
-  @SneakyThrows
-  public static SizeAndDuration sizeAndDurationOf(Path file, FileType type, CueSheetContext context) {
+  public static SizeAndDuration sizeAndDurationOf(Path file, FileType type, CueSheetContext context) throws IOException {
+    AudioInfoSupplier<?> audioInfoSupplier = type.isAudio()
+        ? getInfoSupplierByFileName(file.getFileName().toString())
+        : null;
+
+    SizeAndDuration sizeDuration;
+    if(audioInfoSupplier != null) {
+      sizeDuration = sizeAndDurationOfAudio(file, audioInfoSupplier, context);
+    } else {
+      sizeDuration = sizeAndDurationOfData(file, context);
+    }
+    return sizeDuration;
+  }
+
+  private static SizeAndDuration sizeAndDurationOfAudio(Path file, AudioInfoSupplier<?> audioInfoSupplier, CueSheetContext context) throws IOException {
     CueOptions options = context.getOptions();
     SizeAndDuration sizeDuration = null;
     try {
-      AudioInfoSupplier<?> audioInfoSupplier = getInfoSupplierByFileName(file.getFileName().toString());
-      if(audioInfoSupplier != null && type.isAudio()) {
-        AudioInfo audioInfos = audioInfoSupplier.getInfos(file);
-        Duration duration = audioInfos.getDuration();
-        long size = getCompactDiscBytesFrom(duration, options.getRounding());
-        sizeDuration = new SizeAndDuration(size, duration);
-        audioInfos.getIssues().forEach(issue -> context.addError(issue.toString()));
+      AudioInfo audioInfos = audioInfoSupplier.getInfos(file);
+      Duration duration = audioInfos.getDuration();
+      long size = getCompactDiscBytesFrom(duration, options.getRounding());
+      sizeDuration = new SizeAndDuration(size, duration);
+      audioInfos.getIssues();
+    } catch (IOException e) {
+      if(!options.isFileLeniency()) {
+        throw e;
       } else {
-        sizeDuration = new SizeAndDuration(Files.size(file));
+        context.addIssue(e);
       }
-    /* TODO useful ?
-    } catch (UnsupportedEncodingException e) {
-    if(!options.isFileLeniency()) {
-      throw e;
-    }
-    */
     } catch (AudioInfoException e) {
-      e.getIssues().forEach(issue -> context.addError(issue.toString()));
+      e.getIssues().forEach(issue -> context.addIssue(issue.toString()));
+    }
+    return sizeDuration;
+  }
+
+  private static SizeAndDuration sizeAndDurationOfData(Path file, CueSheetContext context) throws IOException {
+    SizeAndDuration sizeDuration;
+    try {
+      sizeDuration = new SizeAndDuration(Files.size(file));
+    } catch(IOException e) {
+      if(!context.getOptions().isFileLeniency()) {
+        throw e;
+      } else {
+        sizeDuration = null;
+        context.addIssue(e);
+      }
     }
     return sizeDuration;
   }

@@ -24,7 +24,7 @@ class CueSheetContext {
   private final String name;
 
   private final CueOptions options;
-  private final List<String> errors = new ArrayList<>();
+  private final List<CueSheetIssue> issues = new ArrayList<>();
 
   public CueSheetContext(String name, CueOptions options) {
     this(name, null, name, options);
@@ -45,19 +45,23 @@ class CueSheetContext {
     this.options = options;
   }
 
-  public boolean isErrors() {
-    return !errors.isEmpty();
+  public boolean isIssues() {
+    return !issues.isEmpty();
   }
 
-  public List<String> getErrors() {
-    return Collections.unmodifiableList(errors);
+  public List<CueSheetIssue> getIssues() {
+    return Collections.unmodifiableList(issues);
   }
 
-  public void addError(String message) {
-    errors.add(message);
+  public void addIssue(String message) {
+    issues.add(new CueSheetIssue(message));
   }
 
-  public void addError(String format, Object... args) {
-    addError(String.format(format, args));
+  public void addIssue(Throwable throwable) {
+    issues.add(new CueSheetIssue(throwable));
+  }
+
+  public void addIssue(String format, Object... args) {
+    addIssue(String.format(format, args));
   }
 }

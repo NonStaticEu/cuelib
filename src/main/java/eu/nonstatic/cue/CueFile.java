@@ -13,6 +13,7 @@ import static eu.nonstatic.cue.CueTools.unquote;
 
 import eu.nonstatic.cue.CueTrack.TimeCodeValidation;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -60,19 +61,19 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
     tracks.forEach(this::addTrack);
   }
 
-  public CueFile(File file, CueSheetContext context) {
+  public CueFile(File file, CueSheetContext context) throws IOException {
     this(file.toPath(), context);
   }
 
-  public CueFile(File file, FileType.Data type, CueSheetContext context) {
+  public CueFile(File file, FileType.Data type, CueSheetContext context) throws IOException {
     this(file.toPath(), type, context);
   }
 
-  public CueFile(Path file, CueSheetContext context) {
+  public CueFile(Path file, CueSheetContext context) throws IOException {
     this(new FileReference(file, context));
   }
 
-  public CueFile(Path file, FileType.Data type, CueSheetContext context) {
+  public CueFile(Path file, FileType.Data type, CueSheetContext context) throws IOException {
     this(new FileReference(file, type, context));
   }
 
@@ -317,7 +318,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
    * @param context
    * @return
    */
-  static FileReference parse(@NonNull String fileAndFormat, CueSheetContext context) {
+  static FileReference parse(@NonNull String fileAndFormat, CueSheetContext context) throws IOException {
     String fileName;
     FileType fileType;
     int sep = fileAndFormat.lastIndexOf(' ');
@@ -335,7 +336,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
     return fromParentDir(fileName, fileType, context);
   }
 
-  private static FileReference fromParentDir(String fileOrFileName, FileType fileType, CueSheetContext context) {
+  private static FileReference fromParentDir(String fileOrFileName, FileType fileType, CueSheetContext context) throws IOException {
     Path dir = context.getParent();
     if(dir == null ) { // let's set what we can
       return new FileReference(fileOrFileName, fileType);

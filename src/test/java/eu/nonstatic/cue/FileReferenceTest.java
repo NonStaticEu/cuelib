@@ -10,14 +10,23 @@
 package eu.nonstatic.cue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.nonstatic.audio.AudioInfoException;
 import eu.nonstatic.cue.FileType.Audio;
+import eu.nonstatic.cue.FileType.Data;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class FileReferenceTest extends CueTestBase {
@@ -70,7 +79,7 @@ class FileReferenceTest extends CueTestBase {
   }
 
   @Test
-  void should_parse_not_compliant() {
+  void should_parse_not_compliant() throws IOException {
     FileReference fileReference = CueFile.parse("\"my file.mp3\"", new CueSheetContext("my file.cue", null));
     assertEquals("my file.mp3", fileReference.file);
     assertEquals(Audio.MP3, fileReference.type);
@@ -88,12 +97,12 @@ class FileReferenceTest extends CueTestBase {
     assertEquals(FileType.Data.BINARY, fileType);
   }
 
-  /*
   @Test
   void should_get_from_audio_file() throws IOException {
     Path audioFile = Files.createTempFile("my file", ".flac");
     copyFileContents(FLAC_URL, audioFile);
-    SizeAndDuration sd = new SizeAndDuration(audioFile.toFile(), TimeCodeRounding.DOWN);
+
+    SizeAndDuration sd = new FileReference(audioFile, context).sizeDuration;
     Files.delete(audioFile);
 
     assertEquals(649152L, sd.size);
@@ -104,7 +113,7 @@ class FileReferenceTest extends CueTestBase {
   void should_get_from_audio_path() throws IOException {
     Path audioFile = Files.createTempFile("my file", ".flac");
     copyFileContents(FLAC_URL, audioFile);
-    SizeAndDuration sd = new SizeAndDuration(audioFile, TimeCodeRounding.DOWN);
+    SizeAndDuration sd = new FileReference(audioFile, context).sizeDuration;
     Files.delete(audioFile);
 
     assertEquals(649152L, sd.size);
@@ -117,7 +126,7 @@ class FileReferenceTest extends CueTestBase {
     try(BufferedWriter bw = Files.newBufferedWriter(binFile)) {
       bw.append("You're never gonna figure out who's on first base, because Who is on first base.");
     }
-    SizeAndDuration sd = new SizeAndDuration(binFile, TimeCodeRounding.DOWN);
+    SizeAndDuration sd = new FileReference(binFile, context).sizeDuration;
     Files.delete(binFile);
 
     assertEquals(80L, sd.size);
@@ -128,11 +137,52 @@ class FileReferenceTest extends CueTestBase {
   void should_force_binary() throws IOException {
     Path audioFile = Files.createTempFile("my file", ".flac");
     copyFileContents(FLAC_URL, audioFile);
-    SizeAndDuration sd = new SizeAndDuration(audioFile, TimeCodeRounding.DOWN, true);
+    SizeAndDuration sd = new FileReference(audioFile, Data.BINARY, context).sizeDuration;
     Files.delete(audioFile);
 
     assertEquals(484667L, sd.size);
     assertNull(sd.duration);
   }
-   */
+
+  @Test
+  void should_handle_audio_file_not_found() throws IOException {
+    Path file = Files.createTempFile("my file", ".flac");
+    Files.delete(file);
+
+    CueSheetContext context = new CueSheetContext("whatever", CueOptions.builder().fileLeniency(false).build());
+    assertThrows(NoSuchFileException.class, () -> new FileReference(file, context));
+    assertFalse(context.isIssues());
+
+
+    CueSheetContext lenientContext = new CueSheetContext("whatever", CueOptions.builder().fileLeniency(true).build());
+    FileReference fileReference = new FileReference(file, lenientContext);
+    assertNull(fileReference.sizeDuration);
+
+    List<CueSheetIssue> issues = lenientContext.getIssues();
+    assertEquals(1, issues.size());
+
+    CueSheetIssue issue = issues.get(0);
+    assertTrue(issue.getCause() instanceof NoSuchFileException);
+    assertEquals(NoSuchFileException.class.getName() + ": " + file, issue.getMessage());
+  }
+
+  @Test
+  void should_handle_binary_file_not_found() throws IOException {
+    Path file = Files.createTempFile("my file", ".xyz");
+    Files.delete(file);
+
+    CueSheetContext context = new CueSheetContext("whatever", CueOptions.builder().fileLeniency(false).build());
+    assertThrows(NoSuchFileException.class, () -> new FileReference(file, context));
+    assertFalse(context.isIssues());
+
+
+    CueSheetContext lenientContext = new CueSheetContext("whatever", CueOptions.builder().fileLeniency(true).build());
+    FileReference fileReference = new FileReference(file, lenientContext);
+    assertNull(fileReference.sizeDuration);
+
+    List<CueSheetIssue> issues = lenientContext.getIssues();
+    assertEquals(1, issues.size());
+    assertTrue(issues.get(0).getCause() instanceof NoSuchFileException);
+    assertEquals(NoSuchFileException.class.getName() + ": " + file, issues.get(0).getMessage());
+  }
 }

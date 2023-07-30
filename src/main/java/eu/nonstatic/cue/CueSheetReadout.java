@@ -20,11 +20,11 @@ public class CueSheetReadout {
   private final CueSheetContext context;
 
 
-  public boolean isErrors() {
-    return context.isErrors();
+  public boolean isIssues() {
+    return context.isIssues();
   }
 
-  public List<String> getErrors() {
-    return context.getErrors();
+  public List<CueSheetIssue> getIssues() {
+    return context.getIssues();
   }
 }

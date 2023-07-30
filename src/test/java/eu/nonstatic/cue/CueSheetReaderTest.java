@@ -97,7 +97,7 @@ class CueSheetReaderTest extends CueTestBase {
     CueOptions options = CueOptions.builder().build();
     CueSheetReadout readout = new CueSheetReader().readCueSheet(bomCueUrl, options);
     CueDisc disc = readout.getDisc();
-    assertFalse(readout.isErrors());
+    assertFalse(readout.isIssues());
     assertEquals(StandardCharsets.UTF_8, disc.getCharset());
     assertEquals(StandardCharsets.UTF_8, options.getCharset());
   }
@@ -107,7 +107,7 @@ class CueSheetReaderTest extends CueTestBase {
     CueOptions options = new CueOptions(StandardCharsets.US_ASCII);
     CueSheetReadout readout = new CueSheetReader().readCueSheet(bomCueUrl, options);
     CueDisc disc = readout.getDisc();
-    assertFalse(readout.isErrors());
+    assertFalse(readout.isIssues());
     assertEquals(StandardCharsets.UTF_8, disc.getCharset());
     assertEquals(StandardCharsets.UTF_8, options.getCharset());
   }
@@ -120,8 +120,8 @@ class CueSheetReaderTest extends CueTestBase {
 
     CueSheetReader reader = new CueSheetReader(0, StandardCharsets.US_ASCII); // fallback
     assertThrows(IOException.class, () -> reader.readCueSheet(new FaultyStream(is, Bom.MAX_LENGTH_BYTES), context)); // dies on first line read after charset fallback
-    assertEquals(1, context.getErrors().size());
-    assertEquals("Fallback to US-ASCII for faulty.cue: reads: 4", context.getErrors().get(0));
+    assertEquals(1, context.getIssues().size());
+    assertEquals("Fallback to US-ASCII for faulty.cue: reads: 4", context.getIssues().get(0).getMessage());
     assertEquals(StandardCharsets.US_ASCII, options.getCharset()); // fallback is set
   }
 
@@ -151,9 +151,9 @@ class CueSheetReaderTest extends CueTestBase {
     CueDisc disc = readout.getDisc();
     checkReadCueSheet(disc, myTestUrl.toExternalForm(), "", false);
     assertFalse(disc.isRenumberingNecessary());
-    assertEquals(2, readout.getErrors().size());
-    assertEquals(myTestUrl + "#12: Unknown disc line: SINGLEWORD", readout.getErrors().get(0));
-    assertEquals(myTestUrl + "#15: Unknown disc line: UNKNOWN ThiNG", readout.getErrors().get(1));
+    assertEquals(2, readout.getIssues().size());
+    assertEquals(myTestUrl + "#12: Unknown disc line: SINGLEWORD", readout.getIssues().get(0).getMessage());
+    assertEquals(myTestUrl + "#15: Unknown disc line: UNKNOWN ThiNG", readout.getIssues().get(1).getMessage());
 
 
     disc.getFirstFile().addTrack(new CueTrack(TrackType.AUDIO));
@@ -428,16 +428,16 @@ class CueSheetReaderTest extends CueTestBase {
       CueSheetReadout readout1 = cueSheetReader.readCueSheet(tempFile.toFile());
       CueDisc disc1 = readout1.getDisc();
       checkReadCueSheet(disc1, tempFile.toString(), tempDir.toString(), true);
-      assertEquals(2, readout1.getErrors().size());
-      assertEquals(tempFile + "#12: Unknown disc line: SINGLEWORD", readout1.getErrors().get(0));
-      assertEquals(tempFile + "#15: Unknown disc line: UNKNOWN ThiNG", readout1.getErrors().get(1));
+      assertEquals(2, readout1.getIssues().size());
+      assertEquals(tempFile + "#12: Unknown disc line: SINGLEWORD", readout1.getIssues().get(0).getMessage());
+      assertEquals(tempFile + "#15: Unknown disc line: UNKNOWN ThiNG", readout1.getIssues().get(1).getMessage());
 
       CueSheetReadout readout2 = cueSheetReader.readCueSheet(tempFile.toFile(), charset);
       CueDisc disc2 = readout2.getDisc();
       checkReadCueSheet(disc2, tempFile.toString(), tempDir.toString(), true);
-      assertEquals(2, readout2.getErrors().size());
-      assertEquals(tempFile + "#12: Unknown disc line: SINGLEWORD", readout2.getErrors().get(0));
-      assertEquals(tempFile + "#15: Unknown disc line: UNKNOWN ThiNG", readout2.getErrors().get(1));
+      assertEquals(2, readout2.getIssues().size());
+      assertEquals(tempFile + "#12: Unknown disc line: SINGLEWORD", readout2.getIssues().get(0).getMessage());
+      assertEquals(tempFile + "#15: Unknown disc line: UNKNOWN ThiNG", readout2.getIssues().get(1).getMessage());
     } finally {
       deleteRecursive(tempDir);
     }
