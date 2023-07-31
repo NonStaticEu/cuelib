@@ -164,7 +164,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
     if(lenient && rawFrames >= FRAMES_PER_SECOND) { // seems someone used hundredths of a second instead of frames!
       TimeCode result = new TimeCode(rawMinutes, rawSeconds, scale100to75(rawFrames), rawFrames);
-      log.warn("Leniency over {} parsing, using {} as frame part", timeCode, result.frames); // TODO add to context report
+      log.warn("Leniency over {} parsing, using {} as frame part", timeCode, result.frames);
       return result;
     } else {
       return new TimeCode(rawMinutes, rawSeconds, rawFrames);
@@ -240,6 +240,13 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
   @Override
   public String toString() {
+    return format(minutes, seconds, frames);
+  }
+
+  String toStringRaw() {
+    return format(minutes, seconds, rawFrames);
+  }
+  private static String format(int minutes, int seconds, int frames) {
     return String.format("%02d:%02d:%02d", minutes, seconds, frames);
   }
 }

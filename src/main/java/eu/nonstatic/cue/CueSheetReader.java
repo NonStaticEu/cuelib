@@ -352,8 +352,6 @@ public final class CueSheetReader {
 
 
   private static CueTrack readTrack(int trackNumber, String type, CueLineReader reader, CueSheetContext context) throws IOException {
-    CueOptions options = context.getOptions();
-
     reader.mark();
     CueTrack track = new CueTrack(trackNumber, type);
 
@@ -370,7 +368,7 @@ public final class CueSheetReader {
               reader.reset();
               return track;
             case CueIndex.KEYWORD:
-              track.addIndex(readIndex(line, options));
+              track.addIndex(readIndex(line, context));
               break;
             case TITLE:
               track.setTitle(unquote(tail));
@@ -386,10 +384,10 @@ public final class CueSheetReader {
               setIsrc(track, isrc, context);
               break;
             case PREGAP:
-              track.setPreGap(TimeCode.parse(tail, options.isTimeCodeLeniency()));
+              track.setPreGap(readTimeCode(tail, context));
               break;
             case POSTGAP:
-              track.setPostGap(TimeCode.parse(tail, options.isTimeCodeLeniency()));
+              track.setPostGap(readTimeCode(tail, context));
               break;
             case FLAGS:
               track.setFlags(readFlags(line));
@@ -422,9 +420,17 @@ public final class CueSheetReader {
     return line.getTailParts().stream().map(CueFlag::flagOf).collect(toList());
   }
 
-  private static CueIndex readIndex(CueLine cueLine, CueOptions options) {
+  private static CueIndex readIndex(CueLine cueLine, CueSheetContext context) {
     int number = Integer.parseInt(cueLine.getTailWord(0));
     String timeCode = cueLine.getTailWord(1);
-    return new CueIndex(number, TimeCode.parse(timeCode, options.isTimeCodeLeniency()));
+    return new CueIndex(number, readTimeCode(timeCode, context));
+  }
+
+  private static TimeCode readTimeCode(String timeCodeString, CueSheetContext context) {
+    TimeCode timeCode = TimeCode.parse(timeCodeString, context.getOptions().isTimeCodeLeniency());
+    if(timeCode.isScaled100to75()) {
+      context.addIssue("Scaled %s to %s", timeCode.toStringRaw(), timeCode);
+    }
+    return timeCode;
   }
 }

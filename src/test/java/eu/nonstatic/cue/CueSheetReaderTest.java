@@ -497,6 +497,11 @@ class CueSheetReaderTest extends CueTestBase {
 
     assertEquals(new TimeCode(12, 13, 62), t2Indexes.get(0).getTimeCode());
     assertEquals(new TimeCode(33, 15, 35), t2Indexes.get(1).getTimeCode());
+
+    List<CueSheetIssue> issues = readout.getIssues();
+    assertEquals(1, issues.size());
+    assertEquals("Scaled 12:13:82 to 12:13:62", issues.get(0).getMessage());
+    assertNull(issues.get(0).getCause());
   }
 
   @Test
