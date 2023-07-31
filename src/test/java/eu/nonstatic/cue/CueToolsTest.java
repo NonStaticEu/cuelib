@@ -85,7 +85,7 @@ class CueToolsTest {
     assertThrows(NullPointerException.class, () -> CueTools.getExt(null));
     assertNull(CueTools.getExt(""));
     assertNull(CueTools.getExt("/dev/null"));
-    assertEquals("xyz", CueTools.getExt("/tmp/file.xYZ"));
+    assertEquals("xYZ", CueTools.getExt("/tmp/file.xYZ"));
   }
 
   @Test

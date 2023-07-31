@@ -353,7 +353,7 @@ class CueDiscTest extends CueTestBase {
 
     FileReference fileReference = hiddenTrack.getFileAndFormat();
     assertEquals("file.aiff", fileReference.getFile());
-    assertEquals(FileType.Audio.AIFF, FileReference.getFileTypeByFileName(fileReference.getFile()));
+    assertEquals(FileType.Audio.AIFF, FileReference.getTypeByFileName(fileReference.getFile()));
     assertEquals(actualTrack, hiddenTrack.getTrack());
     assertEquals(actualIndex0, hiddenTrack.getPreGapIndex());
     assertEquals(actualIndex1, disc.getHiddenTrack().getStartIndex());

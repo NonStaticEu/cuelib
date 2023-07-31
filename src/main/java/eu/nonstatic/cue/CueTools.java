@@ -9,7 +9,6 @@
  */
 package eu.nonstatic.cue;
 
-import java.util.Locale;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,7 +44,7 @@ public final class CueTools {
     String ext = null;
     int dot = fileName.lastIndexOf('.');
     if (dot >= 0) {
-      ext = fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
+      ext = fileName.substring(dot + 1);
     }
     return ext;
   }

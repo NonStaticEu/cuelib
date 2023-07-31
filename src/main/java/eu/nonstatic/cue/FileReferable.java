@@ -35,8 +35,10 @@ public interface FileReferable {
 
 
     default boolean isSizeAndDurationSet() {
-        return getSizeDuration() != null;
+        return getSizeAndDuration() != null;
     }
-    SizeAndDuration getSizeDuration();
-    void setSizeAndDuration(SizeAndDuration sizeAndDuration);
+    SizeAndDuration getSizeAndDuration();
+
+    // setSizeAndDuration could be declared here for both CueFile and FileReference overrides
+    // but it's not necessary at the moment, so we'll just keep this class a read-only one for now
 }

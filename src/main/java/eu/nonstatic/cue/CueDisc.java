@@ -555,7 +555,7 @@ public class CueDisc implements CueIterable<CueFile> {
     long totalSize = SizeAndDuration.getCompactDiscBytesFrom(DURATION_LEAD_IN, TimeCodeRounding.CLOSEST);
 
     for (CueFile file : files) {
-      Optional<Long> size = Optional.ofNullable(file.fileReference.sizeDuration).map(sd -> sd.size);
+      Optional<Long> size = Optional.ofNullable(file.fileReference.sizeAndDuration).map(sd -> sd.size);
       if(size.isPresent()) {
         totalSize += size.get();
       } else {

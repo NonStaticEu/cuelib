@@ -29,7 +29,7 @@ public class SizeAndDuration {
   public static final long CD_BYTES_PER_FRAME = CD_BYTES_PER_SECOND / CD_FRAMES_PER_SECOND; // 2352 bytes
 
 
-  protected Long size; // (projected) file size *on the CD* to check if the cuesheet fits on a CD(R)
+  protected long size; // (projected) file size *on the CD* to check if the cuesheet fits on a CD(R)
   protected Duration duration; // only for an audio file, so we can calculate the last track's duration
 
 
@@ -40,12 +40,12 @@ public class SizeAndDuration {
   /**
    * protected: don't want anyone to mess with unrelated values
    */
-  protected SizeAndDuration(@NonNull Long size, Duration duration) {
+  protected SizeAndDuration(long size, Duration duration) {
     this.size = size;
     this.duration = duration;
   }
 
-  public SizeAndDuration(Duration duration, TimeCodeRounding rounding) {
+  public SizeAndDuration(@NonNull Duration duration, TimeCodeRounding rounding) {
     this(getCompactDiscBytesFrom(duration, rounding), duration);
   }
 

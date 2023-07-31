@@ -1,19 +1,15 @@
 package eu.nonstatic.cue;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 
-@Getter //@AllArgsConstructor
+@Getter @AllArgsConstructor
 @ToString
 public class CueSheetIssue {
 
   private final String message;
   private final Throwable cause;
-
-  public CueSheetIssue(String message, Throwable cause) {
-    this.message = message;
-    this.cause = cause;
-  }
 
   public CueSheetIssue(String message) {
     this(message, null);

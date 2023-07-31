@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
+import lombok.NonNull;
 
 @Getter
 class CueSheetContext {
@@ -53,15 +54,15 @@ class CueSheetContext {
     return Collections.unmodifiableList(issues);
   }
 
-  public void addIssue(String message) {
-    issues.add(new CueSheetIssue(message));
+  public void addIssue(String format, Object... args) {
+    addIssue(new CueSheetIssue(String.format(format, args)));
   }
 
   public void addIssue(Throwable throwable) {
-    issues.add(new CueSheetIssue(throwable));
+    addIssue(new CueSheetIssue(throwable));
   }
 
-  public void addIssue(String format, Object... args) {
-    addIssue(String.format(format, args));
+  public void addIssue(@NonNull CueSheetIssue issue) {
+    issues.add(issue);
   }
 }

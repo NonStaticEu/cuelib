@@ -79,11 +79,10 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
 
 
   @Override
-  public SizeAndDuration getSizeDuration() {
-    return fileReference.getSizeDuration();
+  public SizeAndDuration getSizeAndDuration() {
+    return fileReference.getSizeAndDuration();
   }
 
-  @Override
   public void setSizeAndDuration(SizeAndDuration sizeAndDuration) {
     fileReference.setSizeAndDuration(sizeAndDuration);
   }
@@ -205,7 +204,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
     CueTrack track = getTrack(idx); // first because I want range check
 
     if(isAudio()) {
-      Duration fileDuration = Optional.ofNullable(fileReference.sizeDuration).map(sd -> sd.duration).orElse(null);
+      Duration fileDuration = Optional.ofNullable(fileReference.sizeAndDuration).map(sd -> sd.duration).orElse(null);
       int trackCount = tracks.size();
       CueTools.validateRange(RANGE_MESSAGE_TRACK_INDEX, idx, 0, trackCount - 1);
 
@@ -245,7 +244,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
    */
   public Map<CueTrack, Duration> getTracksDurations(boolean allowDisorderedTimeCodes) throws IllegalTrackTypeException, IndexNotFoundException, NegativeDurationException {
     if (!tracks.isEmpty() && isAudio()) { // tracks emptiness first in case fileAndType isn't set
-      Duration fileDuration = Optional.ofNullable(fileReference.sizeDuration)
+      Duration fileDuration = Optional.ofNullable(fileReference.sizeAndDuration)
           .map(sd -> sd.duration)
           .orElseThrow(() -> new IllegalArgumentException("No duration has been specified to get the last track's length for " + fileReference.file));
 
@@ -328,7 +327,7 @@ public class CueFile implements CueEntity, CueIterable<CueTrack>, FileReferable 
       fileType = FileType.of(type);
     } else {
       fileName = unquote(fileAndFormat.trim());
-      fileType = FileReference.getFileTypeByFileName(fileName);
+      fileType = FileReference.getTypeByFileName(fileName);
     }
 
     // parent may be null if we're loading the file from a stream or the network

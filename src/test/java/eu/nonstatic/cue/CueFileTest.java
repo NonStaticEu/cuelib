@@ -49,16 +49,16 @@ class CueFileTest {
     cueFile1.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(indexTimeCode)));
     assertTrue(cueFile1.isAudio());
     assertTrue(cueFile1.isSizeAndDurationSet());
-    assertEquals(new TimeCode(mp3Duration, TimeCodeRounding.DOWN).toFrameCount() * CD_BYTES_PER_FRAME, cueFile1.getSizeDuration().getSize()); // audio size "on CD", rounded DOWN by default
-    assertEquals(mp3Duration, cueFile1.getSizeDuration().getDuration());
+    assertEquals(new TimeCode(mp3Duration, TimeCodeRounding.DOWN).toFrameCount() * CD_BYTES_PER_FRAME, cueFile1.getSizeAndDuration().getSize()); // audio size "on CD", rounded DOWN by default
+    assertEquals(mp3Duration, cueFile1.getSizeAndDuration().getDuration());
     assertEquals(mp3Duration.minus(indexTimeCode.toDuration()), cueFile1.getTrackDuration(0)); // index here not track number. Duration excludes the time before the first index
 
 
     CueFile cueFile2 = new CueFile(path.toFile(), Data.BINARY, context);
     assertFalse(cueFile2.isAudio());
     assertTrue(cueFile2.isSizeAndDurationSet());
-    assertEquals(210469L, cueFile2.getSizeDuration().getSize()); // binary size
-    assertNull(cueFile2.getSizeDuration().getDuration());
+    assertEquals(210469L, cueFile2.getSizeAndDuration().getSize()); // binary size
+    assertNull(cueFile2.getSizeAndDuration().getDuration());
 
     cueFile2.addTrack(new CueTrack(TrackType.MODE2_2352, new CueIndex(TimeCode.ZERO_SECOND)));
     cueFile2.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(TimeCode.ONE_SECOND))); // result below should be the same no matter the track type or indexes, since the file type is binary
