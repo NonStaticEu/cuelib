@@ -196,7 +196,7 @@ public final class CueSheetReader {
     if (bom != null) {
       int skipped = 0;
       while(skipped < bom.length) {
-        skipped += is.skip(bom.length);
+        skipped += (int) is.skip(bom.length);
       }
       // and forcing charset to the one we're now sure of.
       actualCharset = BOM_TO_CHARSET.get(bom);
@@ -238,7 +238,7 @@ public final class CueSheetReader {
     CharsetDetector cd = new CharsetDetector();
     cd.setText(is);
     CharsetMatch cm = cd.detect(); // calls reset() !
-    if (cm != null && cm.getConfidence() > confidence) {
+    if (cm != null && cm.getConfidence() >= confidence) {
       return Charset.forName(cm.getName());
     } else {
       throw new IOException("Confidence low. Cannot detect charset");
