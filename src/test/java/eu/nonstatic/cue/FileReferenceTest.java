@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.nonstatic.audio.AudioFormatException;
 import eu.nonstatic.cue.FileType.Audio;
 import eu.nonstatic.cue.FileType.Data;
 import java.io.BufferedWriter;
@@ -138,8 +139,8 @@ class FileReferenceTest extends CueTestBase {
     assertNull(fileReference.sizeAndDuration);
     List<CueSheetIssue> issues = context.getIssues();
     assertEquals(1, issues.size());
-    assertEquals(IllegalArgumentException.class, issues.get(0).getCause().getClass());
-    assertEquals(IllegalArgumentException.class.getName() + ": Could not find a single MP3 frame: " + audioFile, issues.get(0).getMessage());
+    assertEquals(AudioFormatException.class, issues.get(0).getCause().getClass());
+    assertEquals("Could not find a single frame at 0: " + audioFile, issues.get(0).getCause().getMessage());
   }
 
   @Test

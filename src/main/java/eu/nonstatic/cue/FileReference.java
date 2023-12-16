@@ -162,9 +162,13 @@ class FileReference implements FileReferable {
   }
 
   private static void addIssues(List<AudioIssue> issues, CueSheetContext context) {
-    for (AudioIssue audioIssue : issues) {
-      CueSheetIssue cueSheetIssue = new CueSheetIssue(audioIssue.toString(), audioIssue.getCause());
-      context.addIssue(cueSheetIssue);
+    for (AudioIssue issue : issues) {
+      addIssue(issue, context);
     }
+  }
+
+  private static void addIssue(AudioIssue issue, CueSheetContext context) {
+    CueSheetIssue cueSheetIssue = new CueSheetIssue(issue.toString(), issue.getCause());
+    context.addIssue(cueSheetIssue);
   }
 }

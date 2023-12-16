@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'jacoco'
     id 'maven-publish'
-    id "org.sonarqube" version "3.5.0.2730"
+    id "org.sonarqube" version "4.4.1.3373"
 }
 
 group = "eu.nonstatic"
@@ -13,14 +13,14 @@ repositories {
     mavenCentral()
 }
 
-def lombokVersion = '1.18.24'
-def junitVersion = '5.9.3'
+def lombokVersion = '1.18.30'
+def junitVersion = '5.10.1'
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
     implementation('com.ibm.icu:icu4j:73.2')
-    implementation('org.slf4j:slf4j-api:2.0.5')
-    implementation('eu.nonstatic:audiolib:0.1.0')
+    implementation('org.slf4j:slf4j-api:2.0.7')
+    implementation('eu.nonstatic:audiolib:0.2.0')
     compileOnly("org.projectlombok:lombok:$lombokVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
@@ -51,13 +51,11 @@ test {
 }
 
 jacocoTestReport {
-    reports {
-        xml.enabled(true)
-        html.enabled(true)
-    }
-}
-jacocoTestReport {
     dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 publishing {
@@ -69,5 +67,13 @@ publishing {
 
     repositories {
         mavenLocal()
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/nonstaticeu/cuelib"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
 }
