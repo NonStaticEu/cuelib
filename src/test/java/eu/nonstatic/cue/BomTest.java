@@ -27,41 +27,41 @@ class BomTest {
 
   @Test
   void should_read_bom() throws IOException {
-    byte[] bom = Bom.read(url.openStream());
+    Bom bom = Bom.read(url.openStream());
     assertEquals(Bom.BOM_UTF_8, bom);
   }
 
   @Test
   void should_not_have_bom() throws IOException {
     URL noBomUrl = CueDiscTest.class.getResource("/My Test.cue");
-    byte[] bom = Bom.read(noBomUrl.openStream());
+    Bom bom = Bom.read(noBomUrl.openStream());
     assertNull(bom);
   }
 
   // Useless but coverage likes it
   @Test
   void should_identify_UTF_8() throws IOException {
-    assertEquals(Bom.BOM_UTF_8, Bom.read(streamOf(Bom.BOM_UTF_8)));
+    assertEquals(Bom.BOM_UTF_8, Bom.read(streamOf(Bom.BOM_UTF_8.getBytes())));
   }
 
   @Test
   void should_identify_UTF_16_LE() throws IOException {
-    assertEquals(Bom.BOM_UTF_16_LE, Bom.read(streamOf(Bom.BOM_UTF_16_LE)));
+    assertEquals(Bom.BOM_UTF_16_LE, Bom.read(streamOf(Bom.BOM_UTF_16_LE.getBytes())));
   }
 
   @Test
   void should_identify_UTF_16_BE() throws IOException {
-    assertEquals(Bom.BOM_UTF_16_BE, Bom.read(streamOf(Bom.BOM_UTF_16_BE)));
+    assertEquals(Bom.BOM_UTF_16_BE, Bom.read(streamOf(Bom.BOM_UTF_16_BE.getBytes())));
   }
 
   @Test
   void should_identify_UTF_32_LE() throws IOException {
-    assertEquals(Bom.BOM_UTF_32_LE, Bom.read(streamOf(Bom.BOM_UTF_32_LE)));
+    assertEquals(Bom.BOM_UTF_32_LE, Bom.read(streamOf(Bom.BOM_UTF_32_LE.getBytes())));
   }
 
   @Test
   void should_identify_UTF_32_BE() throws IOException {
-    assertEquals(Bom.BOM_UTF_32_BE, Bom.read(streamOf(Bom.BOM_UTF_32_BE)));
+    assertEquals(Bom.BOM_UTF_32_BE, Bom.read(streamOf(Bom.BOM_UTF_32_BE.getBytes())));
   }
 
 

@@ -11,23 +11,49 @@ package eu.nonstatic.cue;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import lombok.Getter;
 
-public final class Bom {
+/**
+ * see http://www.faqs.org/rfcs/rfc3629.html see http://www.unicode.org/unicode/faq/utf_bom.html
+ */
+@Getter
+public enum Bom {
 
-  /**
-   * see http://www.faqs.org/rfcs/rfc3629.html see http://www.unicode.org/unicode/faq/utf_bom.html
-   */
-  protected static final byte[] BOM_UTF_8 = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
-  protected static final byte[] BOM_UTF_16_LE = new byte[]{(byte) 0xFF, (byte) 0xFE};
-  protected static final byte[] BOM_UTF_16_BE = new byte[]{(byte) 0xFE, (byte) 0xFF};
-  protected static final byte[] BOM_UTF_32_LE = new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00};
-  protected static final byte[] BOM_UTF_32_BE = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF};
+  BOM_UTF_8(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF}, StandardCharsets.UTF_8),
+  BOM_UTF_16_LE(new byte[]{(byte) 0xFF, (byte) 0xFE}, StandardCharsets.UTF_16LE),
+  BOM_UTF_16_BE(new byte[]{(byte) 0xFE, (byte) 0xFF}, StandardCharsets.UTF_16BE),
+  BOM_UTF_32_LE(new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00}, Charset.forName("UTF-32LE")),
+  BOM_UTF_32_BE(new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF}, Charset.forName("UTF-32BE"));
+
+  private final byte[] bytes;
+  private final Charset charset;
 
   static final int MAX_LENGTH_BYTES = 4;
 
-  private Bom() {}
+  Bom(byte[] bytes, Charset charset) {
+    this.bytes = bytes;
+    this.charset = charset;
+  }
 
-  public static byte[] read(InputStream is) throws IOException {
+  public int length() {
+    return bytes.length;
+  }
+
+  /**
+   * bytes may be longer than the Bom it is tested against
+   */
+  private boolean matches(byte[] bytes) {
+    boolean result = true;
+    for (int i = 0; i < length() && result; i++) {
+      result &= (bytes[i] == this.bytes[i]);
+    }
+    return result;
+  }
+
+
+  public static Bom read(InputStream is) throws IOException {
     byte[] bytes = new byte[MAX_LENGTH_BYTES];
     int read;
     int off;
@@ -37,46 +63,38 @@ public final class Bom {
     return identify(bytes, off);
   }
 
-  private static byte[] identify(byte[] bytes, int read) {
-    byte[] bom = null;
+  public static Bom identify(byte[] bytes) {
+    return identify(bytes, bytes.length);
+  }
+
+  public static Bom identify(byte[] bytes, int read) {
+    Bom bom = null;
     switch (read) {
       case 4:
-        if (equalsBom(bytes, MAX_LENGTH_BYTES, BOM_UTF_32_LE)) {
+        if (BOM_UTF_32_LE.matches(bytes)) {
           bom = BOM_UTF_32_LE;
           break;
-        } else if (equalsBom(bytes, MAX_LENGTH_BYTES, BOM_UTF_32_BE)) {
+        } else if (BOM_UTF_32_BE.matches(bytes)) {
           bom = BOM_UTF_32_BE;
           break;
         }
         // else continue to case 3
       case 3:
-        if (equalsBom(bytes, 3, BOM_UTF_8)) {
+        if (BOM_UTF_8.matches(bytes)) {
           bom = BOM_UTF_8;
           break;
         }
         // else continue to case 2
       case 2:
-        if (equalsBom(bytes, 2, BOM_UTF_16_LE)) {
+        if (BOM_UTF_16_LE.matches(bytes)) {
           bom = BOM_UTF_16_LE;
           break;
-        } else if (equalsBom(bytes, 2, BOM_UTF_16_BE)) {
+        } else if (BOM_UTF_16_BE.matches(bytes)) {
           bom = BOM_UTF_16_BE;
           break;
         }
       default:
     }
     return bom;
-  }
-
-  private static boolean equalsBom(byte[] bytes, int size, byte[] expectedBom) {
-    if (size != expectedBom.length) {
-      return false;
-    } else {
-      boolean result = true;
-      for (int i = 0; i < size && result; i++) {
-        result &= (bytes[i] == expectedBom[i]);
-      }
-      return result;
-    }
   }
 }

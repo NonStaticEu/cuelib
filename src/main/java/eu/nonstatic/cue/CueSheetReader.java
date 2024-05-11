@@ -36,7 +36,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,14 +48,6 @@ public final class CueSheetReader {
 
   private static final String MESSAGE_NO_KEYWORD = "%s#%s: No keyword on line: %s";
   static final String MESSAGE_NOT_CUE = "Not a cue file: ";
-
-  private static final Map<byte[], Charset> BOM_TO_CHARSET = Map.of(
-      Bom.BOM_UTF_8, StandardCharsets.UTF_8,
-      Bom.BOM_UTF_16_LE, StandardCharsets.UTF_16LE,
-      Bom.BOM_UTF_16_BE, StandardCharsets.UTF_16BE,
-      Bom.BOM_UTF_32_LE, Charset.forName("UTF-32LE"),
-      Bom.BOM_UTF_32_BE, Charset.forName("UTF-32BE")
-  );
 
 
   private final int confidence;
@@ -188,18 +179,18 @@ public final class CueSheetReader {
    */
   private Charset handleBomAndCharset(InputStream is, CueSheetContext context) throws IOException {
     is.mark(Bom.MAX_LENGTH_BYTES);
-    byte[] bom = Bom.read(is);
+    Bom bom = Bom.read(is);
     is.reset();
 
     CueOptions options = context.getOptions();
     Charset actualCharset = options.getCharset();
     if (bom != null) {
       int skipped = 0;
-      while(skipped < bom.length) {
-        skipped += (int) is.skip(bom.length);
+      while(skipped < bom.length()) {
+        skipped += (int) is.skip(bom.length());
       }
       // and forcing charset to the one we're now sure of.
-      actualCharset = BOM_TO_CHARSET.get(bom);
+      actualCharset = bom.getCharset();
     } else if(options.getCharset() == null) {
       try {
         actualCharset = detectEncoding(is);
