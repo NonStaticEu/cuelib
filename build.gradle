@@ -9,6 +9,13 @@ group = "eu.nonstatic"
 version = "1.2.0"
 
 repositories {
+    maven {
+        url = "https://maven.pkg.github.com/nonstaticeu/audiolib"
+        credentials {
+            username = System.getenv("GITHUB_ACTOR")
+            password = System.getenv("GITHUB_TOKEN")
+        }
+    }
     mavenLocal()
     mavenCentral()
 }
