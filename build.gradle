@@ -9,8 +9,6 @@ group = "eu.nonstatic"
 version = "1.2.0"
 
 repositories {
-    mavenLocal()
-    mavenCentral()
     maven {
         url = "https://maven.pkg.github.com/nonstaticeu/audiolib"
         credentials {
@@ -18,6 +16,8 @@ repositories {
             password = System.getenv("GITHUB_TOKEN")
         }
     }
+    mavenLocal()
+    mavenCentral()
 }
 
 def lombokVersion = '1.18.30'
