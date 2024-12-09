@@ -69,7 +69,7 @@ public class CueRemark implements CueEntity {
   }
 
   private boolean requiresQuotes() {
-    return isComment() || isSeveralWords() || value.length() == 0;
+    return isComment() || isSeveralWords() || value.isEmpty();
   }
 
   @Override

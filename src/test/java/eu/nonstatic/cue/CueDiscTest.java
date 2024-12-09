@@ -215,7 +215,7 @@ class CueDiscTest extends CueTestBase {
   }
 
   @Test
-  void should_number_correctly_when_first_track_not_1() throws IOException {
+  void should_number_correctly_when_first_track_not_1() {
     CueDisc disc = new CueDisc();
     disc.setFirstTrackNumber(42);
     CueFile file1 = disc.addFile(new CueFile("path1", FileType.Audio.WAVE));

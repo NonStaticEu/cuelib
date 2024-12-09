@@ -106,7 +106,7 @@ class FileReferenceTest extends CueTestBase {
     Path audioFile = Files.createTempFile("my file", ".flac");
     copyFileContents(FLAC_URL, audioFile);
 
-    SizeAndDuration sd = new FileReference(audioFile, newCueSheetContext()).sizeAndDuration;
+    SizeAndDuration sd = new FileReference(audioFile.toFile(), newCueSheetContext()).sizeAndDuration;
     Files.delete(audioFile);
 
     assertEquals(649152L, sd.size);

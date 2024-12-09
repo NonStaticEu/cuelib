@@ -11,7 +11,6 @@ package eu.nonstatic.cue;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -128,8 +127,8 @@ class TimeCodeTest {
     assertEquals(timeCode1, timeCode1);
     assertEquals(timeCode1, new TimeCode(620400L, TimeCode.DEFAULT_ROUNDING));
     assertNotEquals(timeCode1, new TimeCode(30, 20, 10));
-    assertFalse(timeCode1.equals("whatever")); // using equals for coverage
-    assertFalse(timeCode1.equals(null)); // using equals for coverage
+    assertNotEquals("whatever", timeCode1); // using equals for coverage
+    assertNotEquals(null, timeCode1); // using equals for coverage
   }
 
   @Test

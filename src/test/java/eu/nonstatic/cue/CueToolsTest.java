@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Assertions;
@@ -25,6 +26,8 @@ import org.junit.jupiter.api.Test;
  * We don't need to test ICU4J here
  */
 class CueToolsTest {
+
+  private static final Random random = new Random();
 
   @Test
   void should_quote() {
@@ -149,7 +152,7 @@ class CueToolsTest {
 
   private static String makeString(int length) {
     return IntStream.range(0, length)
-      .mapToObj(i -> Integer.toString((int) (Math.random() * 10)))
+      .mapToObj(i -> Integer.toString(random.nextInt(10)))
       .collect(Collectors.joining(""));
   }
 
