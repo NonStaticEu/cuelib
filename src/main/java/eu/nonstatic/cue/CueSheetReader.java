@@ -24,6 +24,7 @@ import static java.util.stream.Collectors.toList;
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -36,6 +37,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -91,9 +94,16 @@ public final class CueSheetReader {
     if (!isCueFile(cueFile)) {
       throw new IllegalArgumentException(MESSAGE_NOT_CUE + cueFile);
     }
-    try (InputStream inputStream = Files.newInputStream(cueFile)) {
-      CueSheetContext context = new CueSheetContext(cueFile, options);
-      CueDisc disc = readCueSheet(inputStream, context);
+
+    CueSheetContext context = new CueSheetContext(cueFile, options);
+    Charset charset;
+    try(InputStream is = new BufferedInputStream(Files.newInputStream(cueFile))) {
+      charset = handleBomAndCharset(is, context);
+    }
+    // Not passing through an InputStreamReader because it's not as charset sensitive
+    // and would allow to read eg: iso-8859-1 files using an utf8 charset.
+    try (BufferedReader reader = Files.newBufferedReader(cueFile, charset)) {
+      CueDisc disc = readCueSheet(reader, context);
       return new CueSheetReadout(disc, context);
     }
   }
@@ -175,14 +185,28 @@ public final class CueSheetReader {
    * @param is must support marking
    * @param context; its options charset may be altered if the bom or the charset detection decides
    * @return detected charset, else fallback
-   * @throws IOException
+   * @throws IOException when issue reading the stream
    */
   private Charset handleBomAndCharset(InputStream is, CueSheetContext context) throws IOException {
+    return handleBomAndCharset(is, context.getOptions(), e -> {
+      String message = String.format("Fallback to %s for %s: %s", fallbackCharset, context.getPath(), e.getMessage());
+      log.warn(message, e);
+      context.addIssue(message);
+    });
+  }
+
+  /**
+   * @param is must support marking
+   * @param options to be altered if the bom or the charset detection decides
+   * @param ec to consume the encoding error when the outcome is the fallback charset
+   * @return detected charset, else fallback
+   * @throws IOException when issue reading the stream
+   */
+  private Charset handleBomAndCharset(InputStream is, CueOptions options, Consumer<IOException> ec) throws IOException {
     is.mark(Bom.MAX_LENGTH_BYTES);
     Bom bom = Bom.read(is);
     is.reset();
 
-    CueOptions options = context.getOptions();
     Charset actualCharset = options.getCharset();
     if (bom != null) {
       int skipped = 0;
@@ -195,10 +219,10 @@ public final class CueSheetReader {
       try {
         actualCharset = detectEncoding(is);
       } catch(IOException e) {
-        String message = String.format("Fallback to %s for %s: %s", fallbackCharset, context.getPath(), e.getMessage());
-        log.warn(message, e);
-        context.addIssue(message);
         actualCharset = fallbackCharset;
+        if(ec != null) {
+          ec.accept(e);
+        }
       }
     }
     options.setCharset(actualCharset);

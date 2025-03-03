@@ -18,7 +18,7 @@ import lombok.Getter;
 import lombok.NonNull;
 
 @Getter
-class CueSheetContext {
+public class CueSheetContext {
 
   private final String path;
   private final Path parent;

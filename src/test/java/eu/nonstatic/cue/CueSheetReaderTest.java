@@ -93,6 +93,40 @@ class CueSheetReaderTest extends CueTestBase {
   }
 
   @Test
+  void should_halt_on_bad_encoding() throws IOException {
+    Path iso8859File = copyFileContents(
+        CueDiscTest.class.getResource("/iso8859-1.cue"),
+        Files.createTempFile("test", ".cue")
+    );
+
+    Path utf8File = copyFileContents(
+        CueDiscTest.class.getResource("/utf-8.cue"),
+        Files.createTempFile("test", ".cue")
+    );
+
+    try {
+      CueOptions iso8859Options = CueOptions.builder().charset(StandardCharsets.ISO_8859_1).fileLeniency(true).build();
+      CueSheetReadout iso8859Readout = new CueSheetReader().readCueSheet(iso8859File, iso8859Options);
+      CueDisc iso8859Disc = iso8859Readout.getDisc();
+      assertEquals("Métamorphoses", iso8859Disc.getTitle());
+      assertEquals("ç â à ù ê ø", iso8859Disc.getTrackNumberOne().getTitle());
+
+      CueOptions utf8Options = CueOptions.builder().charset(StandardCharsets.UTF_8).fileLeniency(true).build();
+      CueSheetReadout utf8Readout = new CueSheetReader().readCueSheet(utf8File, utf8Options);
+      CueDisc utf8Disc = utf8Readout.getDisc();
+      assertEquals("Métamorphoses", utf8Disc.getTitle());
+      assertEquals("ç â à ù ê ø", utf8Disc.getTrackNumberOne().getTitle());
+
+      // This will not throw when reading from an InputStream, hence the resource to file above
+      assertThrows(IOException.class, () -> new CueSheetReader().readCueSheet(iso8859File, utf8Options));
+      // Will not fail assertThrows(IOException.class, () -> new CueSheetReader().readCueSheet(utf8File, iso8859Options));
+    } finally {
+      Files.delete(iso8859File);
+      Files.delete(utf8File);
+    }
+  }
+
+  @Test
   void should_infer_charset_from_bom() throws IOException {
     CueOptions options = CueOptions.builder().build();
     CueSheetReadout readout = new CueSheetReader().readCueSheet(bomCueUrl, options);
@@ -129,6 +163,14 @@ class CueSheetReaderTest extends CueTestBase {
    * @return file because most methods taking File cascade to Path, so it's better for coverage
    */
   private static File createFileWithCharset(String line, Charset fileCharset) throws IOException {
+    Path tempFile = Files.createTempFile("test", null);
+    try (PrintStream ps = new PrintStream(Files.newOutputStream(tempFile, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE), true, fileCharset)) {
+      ps.println(line);
+    }
+    return tempFile.toFile();
+  }
+
+  private static File createFileFromResouce(String line, Charset fileCharset) throws IOException {
     Path tempFile = Files.createTempFile("test", null);
     try (PrintStream ps = new PrintStream(Files.newOutputStream(tempFile, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE), true, fileCharset)) {
       ps.println(line);
