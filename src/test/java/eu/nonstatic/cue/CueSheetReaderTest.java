@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -65,21 +66,21 @@ class CueSheetReaderTest extends CueTestBase {
   }
 
   @Test
-  void should_detect_ascii_but_does_not() throws IOException {
+  void should_detect_ascii_but_does_not() throws IOException, BadCharsetException {
     checkCharset(ASCII_BE_BOP_A_LULA, StandardCharsets.US_ASCII, StandardCharsets.ISO_8859_1); // ICU can't make the difference
   }
 
   @Test
-  void should_detect_iso_8859_1() throws IOException {
+  void should_detect_iso_8859_1() throws IOException, BadCharsetException {
     checkCharset(UNICODE_CHA_CHA_CHA, StandardCharsets.ISO_8859_1, StandardCharsets.ISO_8859_1);
   }
 
   @Test
-  void should_detect_utf8() throws IOException {
+  void should_detect_utf8() throws IOException, BadCharsetException {
     checkCharset(UNICODE_CHA_CHA_CHA, StandardCharsets.UTF_8, StandardCharsets.UTF_8);
   }
 
-  static void checkCharset(String line, Charset fileCharset, Charset expectedCharset) throws IOException {
+  static void checkCharset(String line, Charset fileCharset, Charset expectedCharset) throws IOException, BadCharsetException {
     File tempFile = createFileWithCharset(line, fileCharset);
 
     Charset charset = new CueSheetReader().detectEncoding(tempFile);
@@ -90,6 +91,56 @@ class CueSheetReaderTest extends CueTestBase {
     assertEquals(tempFile.getAbsolutePath(), context.getPath());
     assertEquals(expectedCharset, charset);
     tempFile.delete();
+  }
+
+  @Test
+  void should_fail_on_no_fallback_encoding() throws IOException {
+    Path tempFile = Files.createTempFile("test", ".cue");
+
+    try(OutputStream os = Files.newOutputStream(tempFile)) {
+      os.write(new byte[]{0x02, 0x04});
+    }
+
+    try {
+      CueSheetReader reader = new CueSheetReader(null); // no default charset
+      assertThrows(BadCharsetException.class, () -> reader.readCueSheet(tempFile));
+    } finally {
+      Files.delete(tempFile);
+    }
+  }
+
+  @Test
+  void should_fail_on_bad_encoding() throws IOException {
+    Path iso8859File = copyFileContents(
+        CueDiscTest.class.getResource("/iso8859-1.cue"),
+        Files.createTempFile("test", ".cue")
+    );
+
+    Path utf8File = copyFileContents(
+        CueDiscTest.class.getResource("/utf-8.cue"),
+        Files.createTempFile("test", ".cue")
+    );
+
+    try {
+      CueOptions iso8859Options = CueOptions.builder().charset(StandardCharsets.ISO_8859_1).fileLeniency(true).build();
+      CueSheetReadout iso8859Readout = new CueSheetReader().readCueSheet(iso8859File, iso8859Options);
+      CueDisc iso8859Disc = iso8859Readout.getDisc();
+      assertEquals("Métamorphoses", iso8859Disc.getTitle());
+      assertEquals("ç â à ù ê ø", iso8859Disc.getTrackNumberOne().getTitle());
+
+      CueOptions utf8Options = CueOptions.builder().charset(StandardCharsets.UTF_8).fileLeniency(true).build();
+      CueSheetReadout utf8Readout = new CueSheetReader().readCueSheet(utf8File, utf8Options);
+      CueDisc utf8Disc = utf8Readout.getDisc();
+      assertEquals("Métamorphoses", utf8Disc.getTitle());
+      assertEquals("ç â à ù ê ø", utf8Disc.getTrackNumberOne().getTitle());
+
+      // This will not throw when reading from an InputStream, hence the resource to file above
+      assertThrows(BadCharsetException.class, () -> new CueSheetReader().readCueSheet(iso8859File, utf8Options));
+      // Will not fail assertThrows(IOException.class, () -> new CueSheetReader().readCueSheet(utf8File, iso8859Options));
+    } finally {
+      Files.delete(iso8859File);
+      Files.delete(utf8File);
+    }
   }
 
   @Test
@@ -121,7 +172,7 @@ class CueSheetReaderTest extends CueTestBase {
     CueSheetReader reader = new CueSheetReader(0, StandardCharsets.US_ASCII); // fallback
     assertThrows(IOException.class, () -> reader.readCueSheet(new FaultyStream(is, Bom.MAX_LENGTH_BYTES), context)); // dies on first line read after charset fallback
     assertEquals(1, context.getIssues().size());
-    assertEquals("Fallback to US-ASCII for faulty.cue: reads: 4", context.getIssues().get(0).getMessage());
+    assertEquals("Fallback to US-ASCII for faulty.cue: java.io.IOException: reads: 4", context.getIssues().get(0).getMessage());
     assertEquals(StandardCharsets.US_ASCII, options.getCharset()); // fallback is set
   }
 
@@ -137,7 +188,7 @@ class CueSheetReaderTest extends CueTestBase {
   }
 
   @Test
-  void should_detect_utf8_stream() throws IOException {
+  void should_detect_utf8_stream() throws IOException, BadCharsetException {
     File tempFile = createFileWithCharset(UNICODE_CHA_CHA_CHA, StandardCharsets.UTF_8);
     try(InputStream is = Files.newInputStream(tempFile.toPath())) {
       assertEquals(StandardCharsets.UTF_8, new CueSheetReader().detectEncoding(is));
@@ -482,7 +533,7 @@ class CueSheetReaderTest extends CueTestBase {
     CueSheetReader cueSheetReader = new CueSheetReader();
     CueOptions options = new CueOptions(StandardCharsets.UTF_8);
     IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> cueSheetReader.readCueSheet(tcCueUrl, options));
-    assertEquals("frames must be in the [0-74] range", iae.getMessage());
+    assertEquals("Frames must be in the [0-74] range", iae.getMessage());
   }
 
   @Test

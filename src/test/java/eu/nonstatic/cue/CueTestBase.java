@@ -75,8 +75,8 @@ abstract class CueTestBase {
   }
 
   public static Path copyFileContents(URL url, Path file) throws IOException {
-    try(InputStream mp3Stream  = url.openStream()) {
-      Files.copy(mp3Stream, file, StandardCopyOption.REPLACE_EXISTING);
+    try(InputStream is  = url.openStream()) {
+      Files.copy(is, file, StandardCopyOption.REPLACE_EXISTING);
     }
     return file;
   }

@@ -90,7 +90,7 @@ class FileReference implements FileReferable {
 
   public void setSizeAndDuration(SizeAndDuration sizeAndDuration) {
     if(sizeAndDuration != null && sizeAndDuration.duration == null && type.isAudio()) {
-      throw new IllegalArgumentException("duration must be provided for audio types");
+      throw new IllegalArgumentException("Duration must be provided for audio types");
     } else {
       this.sizeAndDuration = sizeAndDuration;
     }

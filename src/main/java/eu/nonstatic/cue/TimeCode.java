@@ -106,15 +106,15 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
   public static void validate(int minutes, int seconds, int frames) {
     // Not controlling upper bound, you can make a cue longer than a CDR length without burning it.
     if (minutes < 0) {
-      throw new IllegalArgumentException("minutes must be in the [0-∞] range");
+      throw new IllegalArgumentException("Minutes must be in the [0-∞] range");
     }
 
     if (seconds < 0 || seconds >= SECONDS_PER_MINUTE) {
-      throw new IllegalArgumentException("seconds must be in the [0-59] range");
+      throw new IllegalArgumentException("Seconds must be in the [0-59] range");
     }
 
     if (frames < 0 || frames >= FRAMES_PER_SECOND) {
-      throw new IllegalArgumentException("frames must be in the [0-74] range");
+      throw new IllegalArgumentException("Frames must be in the [0-74] range");
     }
   }
 
@@ -199,7 +199,7 @@ public final class TimeCode implements Comparable<TimeCode>, Serializable {
 
   public static int scale100to75(int hundredths) {
     if (hundredths < 0 || hundredths >= HUNDRED) {
-      throw new IllegalArgumentException("hundredths must be in the [0-99] range");
+      throw new IllegalArgumentException("Hundredths must be in the [0-99] range");
     }
     return (hundredths * FRAMES_PER_SECOND + FRAMES_PER_SECOND - 1) / HUNDRED;
   }

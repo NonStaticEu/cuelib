@@ -73,7 +73,7 @@ class CueSheetWriterTest extends CueTestBase {
   }
 
   @Test
-  void should_write_cuesheet_to_file_other_charset() throws IOException {
+  void should_write_cuesheet_to_file_other_charset() throws IOException, BadCharsetException {
     CueSheetReader cueSheetReader = new CueSheetReader();
 
     Charset inputCharset = StandardCharsets.UTF_8, outputCharset = StandardCharsets.ISO_8859_1;

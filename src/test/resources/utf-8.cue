@@ -1,6 +1,6 @@
 PERFORMER "JMJ"
-TITLE "Métamorphoses"
+TITLE "MÃ©tamorphoses"
 FILE "file.wav" WAVE
   TRACK 01 AUDIO
-    TITLE "ç â à ù ê ø"
+    TITLE "Ã§ Ã¢ Ã  Ã¹ Ãª Ã¸"
     INDEX 01 00:00:00

@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.io.Reader;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 
 public class CueLineReader implements Closeable {
@@ -33,10 +34,14 @@ public class CueLineReader implements Closeable {
     return reader.getLineNumber();
   }
 
-  public CueLine readLine() throws IOException {
-    int lineNumber = reader.getLineNumber();
-    String line = reader.readLine();
-    return (line != null) ? new CueLine(lineNumber, line) : null;
+  public CueLine readLine() throws IOException, BadCharsetException {
+    try {
+      int lineNumber = reader.getLineNumber();
+      String line = reader.readLine();
+      return (line != null) ? new CueLine(lineNumber, line) : null;
+    } catch(CharacterCodingException e) {
+      throw new BadCharsetException(e);
+    }
   }
 
   public int read() throws IOException {
