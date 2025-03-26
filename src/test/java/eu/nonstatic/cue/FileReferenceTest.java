@@ -144,6 +144,21 @@ class FileReferenceTest extends CueTestBase {
   }
 
   @Test
+  void should_handle_unknown_audio_file_format() throws IOException {
+    Path audioFile = Files.createTempFile("my file", ".xyz");
+
+    CueSheetContext context = newCueSheetContext();
+    FileReference fileReference = new FileReference(audioFile, Audio.WAVE, context); // pretending it detected it's an audio file
+    Files.delete(audioFile);
+
+    assertNull(fileReference.sizeAndDuration);
+    List<CueSheetIssue> issues = context.getIssues();
+    assertEquals(1, issues.size());
+    assertEquals(IllegalArgumentException.class, issues.get(0).getCause().getClass());
+    assertEquals("No audio info available for extension: xyz", issues.get(0).getCause().getMessage());
+  }
+
+  @Test
   void should_handle_audio_issues() throws IOException {
     Path audioFile = Files.createTempFile("my file", ".aiff");
     try(DataOutputStream os = new DataOutputStream(Files.newOutputStream(audioFile))) {

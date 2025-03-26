@@ -117,13 +117,17 @@ class FileReference implements FileReferable {
   public static SizeAndDuration sizeAndDurationOf(Path file, FileType type, CueSheetContext context) throws IOException {
     CueOptions options = context.getOptions();
 
-    AudioInfoSupplier<?> audioInfoSupplier = type.isAudio()
-        ? AudioInfoSuppliers.getByFileName(file.getFileName().toString())
-        : null;
+    AudioInfoSupplier<?> audioInfoSupplier;
+    try {
+      audioInfoSupplier = type.isAudio() ? AudioInfoSuppliers.getByFileName(file.getFileName().toString()) : null;
+    } catch(IllegalArgumentException e) { // file extension cannot be matched to a recognized audio format
+      addIssue(AudioIssue.other(0, e), context);
+      return null;
+    }
 
-    SizeAndDurationSupplier supplier;
+    SizeAndDurationSupplier sizeAndDurationSupplier;
     if(audioInfoSupplier != null) {  // it's audio
-      supplier = () -> {
+      sizeAndDurationSupplier = () -> {
         AudioInfo audioInfos = audioInfoSupplier.getInfos(file);
         addIssues(audioInfos.getIssues(), context);
         Duration duration = audioInfos.getDuration();
@@ -131,12 +135,11 @@ class FileReference implements FileReferable {
         return new SizeAndDuration(size, duration);
       };
     } else { // it's data
-      supplier = () -> new SizeAndDuration(Files.size(file));
+      sizeAndDurationSupplier = () -> new SizeAndDuration(Files.size(file));
     }
 
-    SizeAndDuration sizeDuration = null;
     try {
-      sizeDuration = supplier.get();
+      return sizeAndDurationSupplier.get();
     } catch(IllegalArgumentException e) { // eg: an audio file is not what its extension claims it is
       context.addIssue(e);
     } catch(NoSuchFileException e) { // and let other IOException types be thrown
@@ -148,7 +151,7 @@ class FileReference implements FileReferable {
     } catch (AudioInfoException e) {
       addIssues(e, context);
     }
-    return sizeDuration;
+    return null;
   }
 
   private static void addIssues(AudioInfoException e, CueSheetContext context) {
