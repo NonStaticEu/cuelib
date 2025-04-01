@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'java-library'
     id 'jacoco'
     id 'maven-publish'
     id "org.sonarqube" version "4.4.1.3373"
@@ -27,7 +28,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
     implementation('com.ibm.icu:icu4j:73.2')
     implementation('org.slf4j:slf4j-api:2.0.7')
-    implementation('eu.nonstatic:audiolib:0.2.0')
+    api('eu.nonstatic:audiolib:0.3.0')
     compileOnly("org.projectlombok:lombok:$lombokVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
