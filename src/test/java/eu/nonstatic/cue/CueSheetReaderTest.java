@@ -35,7 +35,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -489,6 +491,37 @@ class CueSheetReaderTest extends CueTestBase {
       assertEquals(2, readout2.getIssues().size());
       assertEquals(tempFile + "#12: Unknown disc line: SINGLEWORD", readout2.getIssues().get(0).getMessage());
       assertEquals(tempFile + "#15: Unknown disc line: UNKNOWN ThiNG", readout2.getIssues().get(1).getMessage());
+    } finally {
+      deleteRecursive(tempDir);
+    }
+  }
+
+  @Test
+  void should_read_size_and_duration() throws IOException {
+    Path tempDir = Files.createTempDirectory("should_read_size_and_duration");
+    Path tempFile = Files.createTempFile(tempDir, "test", ".cue");
+    List<String> lines = readLines(sizeDurationTestUrl, StandardCharsets.UTF_8);
+    writeLines(tempFile, lines, StandardCharsets.UTF_8);
+
+    Path binPath = copyFileContents(AIFF_URL, tempDir, "some binary 1.bin");
+    copyFileContents(MP3_URL, tempDir, "some file 1.mp3");
+    copyFileContents(WAVE_URL, tempDir, "some file 2.WAV");
+
+    try {
+      CueDisc disc = new CueSheetReader().readCueSheet(tempFile).getDisc();
+
+      Duration duration = Duration.ofNanos(19165285714L);
+
+      assertEquals(duration, disc.getDuration());
+
+      Map<CueTrack, Duration> tracksDurations = disc.getTracksDurations();
+      assertEquals(4, tracksDurations.size()); // the binary one isn't there
+      assertFalse(tracksDurations.keySet().stream().anyMatch(cueTrack -> cueTrack.getNumber() == 1));
+      assertEquals(duration, tracksDurations.values().stream().reduce(Duration.ZERO, Duration::plus));
+
+      assertEquals(Files.size(binPath)
+          + tracksDurations.values().stream().mapToLong(d -> SizeAndDuration.getCompactDiscBytesFrom(new TimeCode(d, TimeCodeRounding.DOWN))).sum(),
+          disc.getSizeOnDisc() - SizeAndDuration.getCompactDiscBytesFrom(CueDisc.DURATION_LEAD_IN, TimeCodeRounding.CLOSEST));
     } finally {
       deleteRecursive(tempDir);
     }

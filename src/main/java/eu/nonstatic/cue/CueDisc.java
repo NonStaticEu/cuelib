@@ -555,9 +555,9 @@ public class CueDisc implements CueIterable<CueFile> {
     long totalSize = SizeAndDuration.getCompactDiscBytesFrom(DURATION_LEAD_IN, TimeCodeRounding.CLOSEST);
 
     for (CueFile file : files) {
-      Optional<Long> size = Optional.ofNullable(file.fileReference.sizeAndDuration).map(sd -> sd.size);
-      if(size.isPresent()) {
-        totalSize += size.get();
+      SizeAndDuration sizeAndDuration = file.getSizeAndDuration();
+      if(sizeAndDuration != null) {
+        totalSize += sizeAndDuration.size;
       } else {
         throw new NullPointerException(file.getFile() + ": missing size");
       }
@@ -579,5 +579,22 @@ public class CueDisc implements CueIterable<CueFile> {
     // Not entirely sure we should account for lead-out.
 
     return totalSize;
+  }
+
+  public Duration getDuration() {
+    Duration totalDuration = Duration.ZERO;
+
+    for (CueFile file : files) {
+      if(file.isAudio()) {
+        SizeAndDuration sizeAndDuration = file.getSizeAndDuration();
+        if(sizeAndDuration != null && sizeAndDuration.duration != null) {
+          totalDuration = totalDuration.plus(sizeAndDuration.duration);
+        } else {
+          throw new NullPointerException(file.getFile() + ": missing duration");
+        }
+      }
+    }
+
+    return totalDuration;
   }
 }

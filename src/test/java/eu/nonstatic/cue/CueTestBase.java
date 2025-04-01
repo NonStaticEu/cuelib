@@ -30,6 +30,7 @@ import java.util.List;
 abstract class CueTestBase {
 
   static URL myTestUrl = CueDiscTest.class.getResource("/My Test.cue");
+  static URL sizeDurationTestUrl = CueDiscTest.class.getResource("/SD Test.cue");
 
   /*
    * Those samples are taken from here:
