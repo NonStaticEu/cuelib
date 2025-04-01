@@ -155,7 +155,7 @@ class FileReferenceTest extends CueTestBase {
     List<CueSheetIssue> issues = context.getIssues();
     assertEquals(1, issues.size());
     assertEquals(IllegalArgumentException.class, issues.get(0).getCause().getClass());
-    assertEquals("No audio info available for extension: xyz", issues.get(0).getCause().getMessage());
+    assertEquals("No audio format available for extension: xyz", issues.get(0).getCause().getMessage());
   }
 
   @Test
