@@ -32,6 +32,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -125,19 +126,20 @@ class CueSheetReaderTest extends CueTestBase {
 
     try {
       CueOptions iso8859Options = CueOptions.builder().charset(StandardCharsets.ISO_8859_1).fileLeniency(true).build();
-      CueSheetReadout iso8859Readout = new CueSheetReader().readCueSheet(iso8859File, iso8859Options);
+      CueSheetReader reader = new CueSheetReader();
+      CueSheetReadout iso8859Readout = reader.readCueSheet(iso8859File, iso8859Options);
       CueDisc iso8859Disc = iso8859Readout.getDisc();
       assertEquals("Métamorphoses", iso8859Disc.getTitle());
       assertEquals("ç â à ù ê ø", iso8859Disc.getTrackNumberOne().getTitle());
 
       CueOptions utf8Options = CueOptions.builder().charset(StandardCharsets.UTF_8).fileLeniency(true).build();
-      CueSheetReadout utf8Readout = new CueSheetReader().readCueSheet(utf8File, utf8Options);
+      CueSheetReadout utf8Readout = reader.readCueSheet(utf8File, utf8Options);
       CueDisc utf8Disc = utf8Readout.getDisc();
       assertEquals("Métamorphoses", utf8Disc.getTitle());
       assertEquals("ç â à ù ê ø", utf8Disc.getTrackNumberOne().getTitle());
 
       // This will not throw when reading from an InputStream, hence the resource to file above
-      assertThrows(BadCharsetException.class, () -> new CueSheetReader().readCueSheet(iso8859File, utf8Options));
+      assertThrows(BadCharsetException.class, () -> reader.readCueSheet(iso8859File, utf8Options));
       // Will not fail assertThrows(IOException.class, () -> new CueSheetReader().readCueSheet(utf8File, iso8859Options));
     } finally {
       Files.delete(iso8859File);
@@ -147,16 +149,31 @@ class CueSheetReaderTest extends CueTestBase {
 
   @Test
   void should_infer_charset_from_bom() throws IOException {
-    CueOptions options = CueOptions.builder().build();
-    CueSheetReadout readout = new CueSheetReader().readCueSheet(bomCueUrl, options);
+    CueSheetReader reader = new CueSheetReader();
+    // From stream
+    CueOptions options1 = CueOptions.builder().build();
+    CueSheetReadout readout = reader.readCueSheet(bomCueUrl, options1);
     CueDisc disc = readout.getDisc();
     assertFalse(readout.isIssues());
     assertEquals(StandardCharsets.UTF_8, disc.getCharset());
-    assertEquals(StandardCharsets.UTF_8, options.getCharset());
+    assertEquals(StandardCharsets.UTF_8, options1.getCharset());
+
+    // From file
+    Path bomCueFile = copyFileContents(
+      bomCueUrl, Files.createTempFile("test", ".cue")
+    );
+    CueOptions options2 = CueOptions.builder().fileLeniency(true).build();
+    CueSheetReadout readout2 = reader.readCueSheet(bomCueFile, options2);
+    CueDisc disc2 = readout2.getDisc();
+    List<CueSheetIssue> issues2 = readout2.getIssues();
+    assertEquals(1, issues2.size()); // No "Unknown disc line", just the missing file
+    assertTrue(issues2.get(0).getCause() instanceof NoSuchFileException);
+    assertEquals(StandardCharsets.UTF_8, disc2.getCharset());
+    assertEquals(StandardCharsets.UTF_8, options2.getCharset());
   }
 
   @Test
-  void should_correct_charset_from_bom() throws IOException {
+  void should_correct_charset_with_boms() throws IOException {
     CueOptions options = new CueOptions(StandardCharsets.US_ASCII);
     CueSheetReadout readout = new CueSheetReader().readCueSheet(bomCueUrl, options);
     CueDisc disc = readout.getDisc();

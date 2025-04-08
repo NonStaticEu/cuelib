@@ -33,6 +33,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -102,11 +103,10 @@ public final class CueSheetReader {
     Charset charset;
     try(InputStream is = new BufferedInputStream(Files.newInputStream(cueFile))) {
       charset = handleBomAndCharset(is, context);
-    }
-
-    // Not passing through an InputStreamReader because it's not as charset sensitive
-    // and would allow to read eg: iso-8859-1 files using an utf8 charset.
-    try (BufferedReader reader = Files.newBufferedReader(cueFile, charset)) {
+      CharsetDecoder cd = charset.newDecoder();
+      // Not passing the charset because it's not as charset sensitive as the decoder
+      // and would allow to read eg: iso-8859-1 files using an utf8 charset.
+      BufferedReader reader = new BufferedReader(new InputStreamReader(is, cd));
       CueDisc disc = readCueSheet(reader, context);
       return new CueSheetReadout(disc, context);
     }
