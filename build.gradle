@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "eu.nonstatic"
-version = "1.2.2"
+version = "1.2.3"
 
 repositories {
     maven {
@@ -21,18 +21,17 @@ repositories {
     mavenCentral()
 }
 
-def lombokVersion = '1.18.30'
-def junitVersion = '5.10.1'
+def lombokVersion = '1.18.40'
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-    implementation('com.ibm.icu:icu4j:73.2')
-    implementation('org.slf4j:slf4j-api:2.0.7')
-    api('eu.nonstatic:audiolib:0.3.0')
+    implementation('com.ibm.icu:icu4j:77.1')
+    implementation('org.slf4j:slf4j-api:2.0.17')
+    api('eu.nonstatic:audiolib:0.3.1')
     compileOnly("org.projectlombok:lombok:$lombokVersion")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 configurations.implementation {
