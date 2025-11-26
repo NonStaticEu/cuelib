@@ -9,6 +9,11 @@
  */
 package eu.nonstatic.cue;
 
+import java.io.IOException;
+import java.nio.file.FileSystem;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.SecureRandom;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -103,5 +108,18 @@ public final class CueTools {
     } else {
       return s1.equalsIgnoreCase(s2);
     }
+  }
+
+  public static boolean isCaseInsensitiveFileSystem(FileSystem fs) {
+    String suffix;
+    Path lower;
+    var rnd = new SecureRandom();
+    do {
+      suffix = Long.toUnsignedString(rnd.nextLong());
+      lower = fs.getPath("cics" + suffix);
+    } while (Files.exists(lower));
+
+    // Not fs.provider().isSameFile() that might try and access the files
+    return lower.equals(fs.getPath("CICS" + suffix));
   }
 }

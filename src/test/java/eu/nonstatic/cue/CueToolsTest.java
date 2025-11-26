@@ -16,6 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import eu.nonstatic.cue.file.TestFileSystemProvider;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -192,5 +197,33 @@ class CueToolsTest {
     assertFalse(CueTools.equalsIgnoreCase("abcd", "abc"));
 
     assertFalse(CueTools.equalsIgnoreCase("AbCdE", "zXyWvU"));
+  }
+
+  @Test
+  void should_be_case_sensitive_file_system() throws IOException {
+    TestFileSystemProvider fsp = new TestFileSystemProvider();
+    Path path1 = Files.createFile(fsp.getPath(URI.create("cs://abc/def")));
+    Path path2 = Files.createFile(fsp.getPath(URI.create("cs://ABC/DEF")));
+    Path path3 = Files.createFile(fsp.getPath(URI.create("ci://abc/def")));
+    assertFalse(fsp.isSameFile(path1, path2));
+    assertTrue(fsp.isSameFile(path1, path3));
+    assertFalse(fsp.isSameFile(path2, path3));
+    assertFalse(fsp.isSameFile(path3, path2));
+    assertFalse(CueTools.isCaseInsensitiveFileSystem(path1.getFileSystem()));
+    assertFalse(CueTools.isCaseInsensitiveFileSystem(path2.getFileSystem()));
+  }
+
+  @Test
+  void should_be_case_insensitive_file_system() throws IOException {
+    TestFileSystemProvider fsp = new TestFileSystemProvider();
+    Path path1 = Files.createFile(fsp.getPath(URI.create("ci://abc/def")));
+    Path path2 = Files.createFile(fsp.getPath(URI.create("ci://ABC/DEF")));
+    Path path3 = Files.createFile(fsp.getPath(URI.create("cs://abc/def")));
+    assertTrue(fsp.isSameFile(path1, path2));
+    assertTrue(fsp.isSameFile(path1, path3));
+    assertTrue(fsp.isSameFile(path2, path3));
+    assertFalse(fsp.isSameFile(path3, path2));
+    assertTrue(CueTools.isCaseInsensitiveFileSystem(path1.getFileSystem()));
+    assertTrue(CueTools.isCaseInsensitiveFileSystem(path2.getFileSystem()));
   }
 }

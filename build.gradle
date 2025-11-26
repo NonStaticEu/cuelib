@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "eu.nonstatic"
-version = "1.2.3"
+version = "1.2.4"
 
 repositories {
     maven {
@@ -21,11 +21,11 @@ repositories {
     mavenCentral()
 }
 
-def lombokVersion = '1.18.40'
+def lombokVersion = '1.18.42'
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-    implementation('com.ibm.icu:icu4j:77.1')
+    implementation('com.ibm.icu:icu4j:78.1')
     implementation('org.slf4j:slf4j-api:2.0.17')
     api('eu.nonstatic:audiolib:0.3.1')
     compileOnly("org.projectlombok:lombok:$lombokVersion")

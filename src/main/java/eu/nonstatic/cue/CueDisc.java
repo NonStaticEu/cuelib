@@ -529,6 +529,10 @@ public class CueDisc implements CueIterable<CueFile> {
     return issues;
   }
 
+  public boolean isSizesAndDurationsSet() {
+    return files.stream().allMatch(FileReferable::isSizeAndDurationSet);
+  }
+
   /**
    * Computes the tracks durations *without* lead-in/out
    * @return the track's duration.

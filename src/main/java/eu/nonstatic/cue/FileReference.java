@@ -10,6 +10,7 @@
 package eu.nonstatic.cue;
 
 import static eu.nonstatic.cue.CueTools.getExt;
+import static eu.nonstatic.cue.CueTools.isCaseInsensitiveFileSystem;
 import static eu.nonstatic.cue.SizeAndDuration.getCompactDiscBytesFrom;
 
 import eu.nonstatic.audio.AudioInfo;
@@ -125,6 +126,10 @@ class FileReference implements FileReferable {
       return null;
     }
 
+    if(!checkFileExists(file, context)) {
+      return null;
+    }
+
     SizeAndDurationSupplier sizeAndDurationSupplier;
     if(audioInfoSupplier != null) {  // it's audio
       sizeAndDurationSupplier = () -> {
@@ -142,16 +147,44 @@ class FileReference implements FileReferable {
       return sizeAndDurationSupplier.get();
     } catch(IllegalArgumentException e) { // eg: an audio file is not what its extension claims it is
       context.addIssue(e);
-    } catch(NoSuchFileException e) { // and let other IOException types be thrown
-      if(!options.isFileLeniency()) {
-        throw e;
-      } else {
-        context.addIssue(e);
-      }
     } catch (AudioInfoException e) {
       addIssues(e, context);
     }
+    // NoSuchFile was already handled. Let other IOException types be thrown
     return null;
+  }
+
+  private static boolean checkFileExists(Path file, CueSheetContext context) throws IOException {
+    CueOptions options = context.getOptions();
+    // Case where the cue sheet references a file that has a different case on the file system. Windows will find it, not a Posix OS.
+    if(isCaseInsensitiveFileSystem(file.getFileSystem())) {
+      try {
+        if(!file.toRealPath().getFileName().toString().equals(file.getFileName().toString())) { // file exists but has a different case on the file system
+          String message = String.format("File exists, with a different case: %s", file);
+          if(options.isFileLeniency()) {
+            context.addIssue(message);
+          } else {
+            throw new IOException(message);
+          }
+        }
+      } catch (IOException e) { // File not found obviously
+        if(options.isFileLeniency()) {
+          context.addIssue(e);
+          return false;
+        } else {
+          throw e;
+        }
+      }
+    } else if(!Files.exists(file)) {
+      NoSuchFileException e = new NoSuchFileException(file.toString());
+      if(options.isFileLeniency()) {
+        context.addIssue(e);
+      } else {
+        throw e;
+      }
+      return false;
+    }
+    return true;
   }
 
   private static void addIssues(AudioInfoException e, CueSheetContext context) {
