@@ -131,12 +131,16 @@ class CueSheetReaderTest extends CueTestBase {
       CueDisc iso8859Disc = iso8859Readout.getDisc();
       assertEquals("Métamorphoses", iso8859Disc.getTitle());
       assertEquals("ç â à ù ê ø", iso8859Disc.getTrackNumberOne().getTitle());
+      assertFalse(iso8859Disc.isSizesAndDurationsSet());
+      assertThrows(NullPointerException.class, iso8859Disc::getDuration);
 
       CueOptions utf8Options = CueOptions.builder().charset(StandardCharsets.UTF_8).fileLeniency(true).build();
       CueSheetReadout utf8Readout = reader.readCueSheet(utf8File, utf8Options);
       CueDisc utf8Disc = utf8Readout.getDisc();
       assertEquals("Métamorphoses", utf8Disc.getTitle());
       assertEquals("ç â à ù ê ø", utf8Disc.getTrackNumberOne().getTitle());
+      assertFalse(utf8Disc.isSizesAndDurationsSet());
+      assertThrows(NullPointerException.class, utf8Disc::getDuration);
 
       // This will not throw when reading from an InputStream, hence the resource to file above
       assertThrows(BadCharsetException.class, () -> reader.readCueSheet(iso8859File, utf8Options));
@@ -526,9 +530,9 @@ class CueSheetReaderTest extends CueTestBase {
 
     try {
       CueDisc disc = new CueSheetReader().readCueSheet(tempFile).getDisc();
+      assertTrue(disc.isSizesAndDurationsSet());
 
       Duration duration = Duration.ofNanos(19165285714L);
-
       assertEquals(duration, disc.getDuration());
 
       Map<CueTrack, Duration> tracksDurations = disc.getTracksDurations();

@@ -9,6 +9,13 @@
  */
 package eu.nonstatic.cue;
 
+import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.SecureRandom;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -103,5 +110,47 @@ public final class CueTools {
     } else {
       return s1.equalsIgnoreCase(s2);
     }
+  }
+
+  public static boolean isCaseInsensitiveFileSystem(Path dir) throws IOException {
+    String suffix;
+    Path lower;
+    var rnd = new SecureRandom();
+    do {
+      suffix = Long.toUnsignedString(rnd.nextLong());
+      lower = dir.resolve("cics" + suffix);
+    } while (Files.exists(lower));
+
+    try {
+      Path upper = dir.resolve("CICS" + suffix);
+      Files.createFile(upper);
+      boolean result = Files.exists(lower); // it may now exist if now we've created the uppercase file if the FS is case-insensitive
+      Files.delete(upper);
+      return result;
+    } catch (FileAlreadyExistsException e) {
+      // the lowercase one didn't exist and the uppercase one does: we're case-sensitive!
+      return false;
+    }
+  }
+
+  public static boolean isCaseInsensitiveFileSystem2(FileSystem fs) throws IOException {
+    String suffix;
+    Path lower;
+    var rnd = new SecureRandom();
+    do {
+      suffix = Long.toUnsignedString(rnd.nextLong());
+      lower = fs.getPath("cics" + suffix);
+    } while (Files.exists(lower));
+
+    // Not fs.provider().isSameFile() that might try and access the files
+    return lower.equals(fs.getPath("CICS" + suffix));
+  }
+
+  //FIXME
+  public static void main(String[] args) throws IOException {
+    Path root = Path.of("K:");
+    System.out.println(isCaseInsensitiveFileSystem(root));
+    System.out.println(isCaseInsensitiveFileSystem2(FileSystems.getDefault()));
+    System.out.println(isCaseInsensitiveFileSystem2(root.getFileSystem()));
   }
 }
