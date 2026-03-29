@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.nonstatic.cue.CueIterable.CueIterator;
 import eu.nonstatic.cue.FileType.Audio;
+import eu.nonstatic.timecode.TimeCode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;

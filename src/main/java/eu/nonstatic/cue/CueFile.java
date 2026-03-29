@@ -12,6 +12,7 @@ package eu.nonstatic.cue;
 import static eu.nonstatic.cue.CueTools.unquote;
 
 import eu.nonstatic.cue.CueTrack.TimeCodeValidation;
+import eu.nonstatic.timecode.TimeCode;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;

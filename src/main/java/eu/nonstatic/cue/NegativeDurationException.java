@@ -9,6 +9,7 @@
  */
 package eu.nonstatic.cue;
 
+import eu.nonstatic.timecode.TimeCode;
 import java.time.Duration;
 import lombok.Getter;
 

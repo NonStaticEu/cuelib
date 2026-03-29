@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.nonstatic.cue.CueIterable.CueIterator;
 import eu.nonstatic.cue.FileType.Data;
+import eu.nonstatic.timecode.TimeCode;
+import eu.nonstatic.timecode.TimeCodeRounding;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
