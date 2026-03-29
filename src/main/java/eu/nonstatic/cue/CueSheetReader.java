@@ -23,6 +23,7 @@ import static java.util.stream.Collectors.toList;
 
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
+import eu.nonstatic.timecode.TimeCode;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;

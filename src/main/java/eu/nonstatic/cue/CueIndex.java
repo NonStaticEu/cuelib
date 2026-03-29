@@ -9,9 +9,11 @@
  */
 package eu.nonstatic.cue;
 
-import static eu.nonstatic.cue.TimeCode.FRAMES_PER_SECOND;
-import static eu.nonstatic.cue.TimeCode.SECONDS_PER_MINUTE;
+import static eu.nonstatic.timecode.TimeCode.FRAMES_PER_SECOND;
+import static eu.nonstatic.timecode.TimeCode.SECONDS_PER_MINUTE;
 
+import eu.nonstatic.timecode.TimeCode;
+import eu.nonstatic.timecode.TimeCodeRounding;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.Objects;

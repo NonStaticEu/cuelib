@@ -7,11 +7,18 @@ plugins {
 }
 
 group = "eu.nonstatic"
-version = "1.2.4"
+version = "1.2.5"
 
 repositories {
     maven {
         url = "https://maven.pkg.github.com/nonstaticeu/audiolib"
+        credentials {
+            username = System.getenv("GITHUB_ACTOR")
+            password = System.getenv("GITHUB_TOKEN")
+        }
+    }
+    maven {
+        url = "https://maven.pkg.github.com/nonstaticeu/timecode"
         credentials {
             username = System.getenv("GITHUB_ACTOR")
             password = System.getenv("GITHUB_TOKEN")
@@ -25,12 +32,13 @@ def lombokVersion = '1.18.42'
 
 dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
-    implementation('com.ibm.icu:icu4j:78.1')
+    implementation('com.ibm.icu:icu4j:78.3')
     implementation('org.slf4j:slf4j-api:2.0.17')
+    implementation('eu.nonstatic:timecode:1.0.0')
     api('eu.nonstatic:audiolib:0.3.1')
     compileOnly("org.projectlombok:lombok:$lombokVersion")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

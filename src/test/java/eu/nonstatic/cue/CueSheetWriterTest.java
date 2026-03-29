@@ -19,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.nonstatic.cue.FileType.Audio;
+import eu.nonstatic.timecode.TimeCode;
+import eu.nonstatic.timecode.TimeCodeRounding;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;

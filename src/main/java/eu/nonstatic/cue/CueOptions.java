@@ -9,6 +9,7 @@
  */
 package eu.nonstatic.cue;
 
+import eu.nonstatic.timecode.TimeCodeRounding;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import lombok.AccessLevel;

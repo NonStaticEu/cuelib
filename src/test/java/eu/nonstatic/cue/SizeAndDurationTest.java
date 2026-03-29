@@ -12,6 +12,7 @@ package eu.nonstatic.cue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import eu.nonstatic.timecode.TimeCodeRounding;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
