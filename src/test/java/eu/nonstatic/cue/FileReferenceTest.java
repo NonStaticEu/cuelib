@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import eu.nonstatic.audio.AudioFormatException;
+import eu.nonstatic.audio.formats.AudioFormatException;
 import eu.nonstatic.cue.FileType.Audio;
 import eu.nonstatic.cue.FileType.Data;
 import java.io.BufferedWriter;
@@ -155,7 +155,7 @@ class FileReferenceTest extends CueTestBase {
     List<CueSheetIssue> issues = context.getIssues();
     assertEquals(1, issues.size());
     assertEquals(IllegalArgumentException.class, issues.get(0).getCause().getClass());
-    assertEquals("No audio format available for extension: xyz", issues.get(0).getCause().getMessage());
+    assertEquals("No AudioFileType available for extension: xyz", issues.get(0).getCause().getMessage());
   }
 
   @Test

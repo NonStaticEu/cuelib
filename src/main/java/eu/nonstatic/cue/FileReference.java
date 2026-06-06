@@ -13,11 +13,11 @@ import static eu.nonstatic.cue.CueTools.getExt;
 import static eu.nonstatic.cue.CueTools.isCaseInsensitiveFileSystem;
 import static eu.nonstatic.cue.SizeAndDuration.getCompactDiscBytesFrom;
 
-import eu.nonstatic.audio.AudioInfo;
-import eu.nonstatic.audio.AudioInfoException;
-import eu.nonstatic.audio.AudioInfoSupplier;
-import eu.nonstatic.audio.AudioInfoSuppliers;
 import eu.nonstatic.audio.AudioIssue;
+import eu.nonstatic.audio.formats.AudioInfo;
+import eu.nonstatic.audio.formats.AudioInfoException;
+import eu.nonstatic.audio.formats.AudioInfoSupplier;
+import eu.nonstatic.audio.formats.AudioInfoSuppliers;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
