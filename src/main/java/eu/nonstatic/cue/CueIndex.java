@@ -135,7 +135,7 @@ public class CueIndex implements CueEntity, Comparable<CueIndex> {
   }
 
   public void setTimeMillis(long millis, TimeCodeRounding rounding) {
-    timeCode = new TimeCode(millis, rounding);
+    timeCode = TimeCode.ofMillis(millis, rounding);
   }
 
   public String toTimeCode() {

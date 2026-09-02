@@ -51,7 +51,7 @@ class CueFileTest {
     cueFile1.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(indexTimeCode)));
     assertTrue(cueFile1.isAudio());
     assertTrue(cueFile1.isSizeAndDurationSet());
-    assertEquals(new TimeCode(mp3Duration, TimeCodeRounding.DOWN).toFrameCount() * CD_BYTES_PER_FRAME, cueFile1.getSizeAndDuration().getSize()); // audio size "on CD", rounded DOWN by default
+    assertEquals(new TimeCode(mp3Duration, TimeCodeRounding.DOWN).toFrames() * CD_BYTES_PER_FRAME, cueFile1.getSizeAndDuration().getSize()); // audio size "on CD", rounded DOWN by default
     assertEquals(mp3Duration, cueFile1.getSizeAndDuration().getDuration());
     assertEquals(mp3Duration.minus(indexTimeCode.toDuration()), cueFile1.getTrackDuration(0)); // index here not track number. Duration excludes the time before the first index
 
@@ -212,8 +212,8 @@ class CueFileTest {
     );
 
     file.setSizeAndDuration(new SizeAndDuration(Duration.ofMinutes(30), TimeCodeRounding.DOWN));
-    assertEquals(Duration.ofMillis(610133L), file.getTrackDuration(0)); // duration is calculated from the frames diff, hence the 0.133s instead of 0.134s calculated from millis.
-    assertEquals(Duration.ofMillis(569466L), file.getTrackDuration(1));
+    assertEquals(Duration.ofNanos(610_133_333_333L), file.getTrackDuration(0)); // duration is calculated from the frames diff, may be slightly different than if calculated from the nanos.
+    assertEquals(Duration.ofNanos(569_466_666_667L), file.getTrackDuration(1));
   }
 
   @Test
@@ -235,10 +235,10 @@ class CueFileTest {
     Entry<CueTrack, Duration> entry2 = it.next();
 
     assertSame(track1, entry1.getKey());
-    assertEquals(Duration.ofMillis(610133L), entry1.getValue()); // duration is calculated from the frames diff, hence the 0.133s instead of 0.134s calculated from millis.
+    assertEquals(Duration.ofNanos(610_133_333_333L), entry1.getValue()); // duration is calculated from the frames diff, may be slightly different than if calculated from the nanos.
 
     assertSame(track2, entry2.getKey());
-    assertEquals(Duration.ofMillis(572466L), entry2.getValue());
+    assertEquals(Duration.ofNanos(572_466_666_667L), entry2.getValue());
   }
 
   @Test

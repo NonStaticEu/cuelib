@@ -303,7 +303,7 @@ class CueTrackTest {
     assertThrows(NegativeDurationException.class, () -> track7.until(null, fileDuration));
 
     // OK
-    assertEquals(Duration.ofMillis(610133L), track3.until(track2, fileDuration)); // duration is calculated from the frames diff, hence the 0.133s instead of 0.134s calculated from millis.
+    assertEquals(Duration.ofNanos(610_133_333_333L), track3.until(track2, fileDuration)); // duration is calculated from the frames diff, MRounding may be slightly different compared to a nanos diff.
     // OK last track
     assertEquals(Duration.ofMillis(1179600L), track3.until(null, fileDuration));
   }

@@ -62,7 +62,7 @@ public class SizeAndDuration {
   }
 
   public static long getCompactDiscBytesFrom(TimeCode timeCode) {
-    return timeCode.toFrameCount() * CD_BYTES_PER_FRAME;
+    return timeCode.toFrames() * CD_BYTES_PER_FRAME;
   }
 
   public static Duration getDurationFromCompactDiscBytes(long bytes) {

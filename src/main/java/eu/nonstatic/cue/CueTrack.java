@@ -493,7 +493,7 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
         throw new IndexNotFoundException(CueIndex.INDEX_PRE_GAP, CueIndex.INDEX_TRACK_START);
       }
     } else if(fileDuration != null) { // we can't but count till the end of the file
-      trackDuration = fileDuration.minusMillis(firstIndex.getTimeMillis());
+      trackDuration = fileDuration.minus(firstIndex.getTimeCode().toDuration());
       if (trackDuration.isNegative()) {
         throw new NegativeDurationException(firstIndex.getTimeCode(), fileDuration);
       }

@@ -178,7 +178,7 @@ class FileReferenceTest extends CueTestBase {
     assertNull(fileReference.sizeAndDuration);
     List<CueSheetIssue> issues = context.getIssues();
     assertEquals(1, issues.size());
-    assertEquals("AudioIssue EOF at 21", issues.get(0).getMessage());
+    assertEquals("AudioIssue EOF at 22", issues.get(0).getMessage());
     assertEquals(EOFException.class, issues.get(0).getCause().getClass());
   }
 
