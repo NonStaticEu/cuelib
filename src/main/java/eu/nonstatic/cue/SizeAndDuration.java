@@ -58,7 +58,7 @@ public class SizeAndDuration {
    * @return bytes on disc
    */
   public static long getCompactDiscBytesFrom(Duration duration, TimeCodeRounding rounding) {
-    return getCompactDiscBytesFrom(new TimeCode(duration, rounding));
+    return getCompactDiscBytesFrom(TimeCode.ofDuration(duration, rounding));
   }
 
   public static long getCompactDiscBytesFrom(TimeCode timeCode) {

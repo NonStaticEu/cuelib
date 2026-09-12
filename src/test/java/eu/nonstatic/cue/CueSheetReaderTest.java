@@ -543,7 +543,7 @@ class CueSheetReaderTest extends CueTestBase {
       assertEquals(duration, tracksDurations.values().stream().reduce(Duration.ZERO, Duration::plus));
 
       assertEquals(Files.size(binPath)
-          + tracksDurations.values().stream().mapToLong(d -> SizeAndDuration.getCompactDiscBytesFrom(new TimeCode(d, TimeCodeRounding.DOWN))).sum(),
+          + tracksDurations.values().stream().mapToLong(d -> SizeAndDuration.getCompactDiscBytesFrom(TimeCode.ofDuration(d, TimeCodeRounding.DOWN))).sum(),
           disc.getSizeOnDisc() - SizeAndDuration.getCompactDiscBytesFrom(CueDisc.DURATION_LEAD_IN, TimeCodeRounding.CLOSEST));
     } finally {
       deleteRecursive(tempDir);

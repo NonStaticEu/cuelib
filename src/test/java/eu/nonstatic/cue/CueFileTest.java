@@ -51,7 +51,7 @@ class CueFileTest {
     cueFile1.addTrack(new CueTrack(TrackType.AUDIO, new CueIndex(indexTimeCode)));
     assertTrue(cueFile1.isAudio());
     assertTrue(cueFile1.isSizeAndDurationSet());
-    assertEquals(new TimeCode(mp3Duration, TimeCodeRounding.DOWN).toFrames() * CD_BYTES_PER_FRAME, cueFile1.getSizeAndDuration().getSize()); // audio size "on CD", rounded DOWN by default
+    assertEquals(TimeCode.ofDuration(mp3Duration, TimeCodeRounding.DOWN).toFrames() * CD_BYTES_PER_FRAME, cueFile1.getSizeAndDuration().getSize()); // audio size "on CD", rounded DOWN by default
     assertEquals(mp3Duration, cueFile1.getSizeAndDuration().getDuration());
     assertEquals(mp3Duration.minus(indexTimeCode.toDuration()), cueFile1.getTrackDuration(0)); // index here not track number. Duration excludes the time before the first index
 

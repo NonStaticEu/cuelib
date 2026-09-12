@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "eu.nonstatic"
-version = "1.4.0"
+version = "1.4.1"
 
 repositories {
     maven {
@@ -36,7 +36,7 @@ def lombokVersion = '1.18.46'
 dependencies {
     annotationProcessor("org.projectlombok:lombok:$lombokVersion")
     api('com.ibm.icu:icu4j:78.3')
-    api('eu.nonstatic:audiolib:0.6.0') {
+    api('eu.nonstatic:audiolib:0.6.2') {
         exclude group: "edu.princeton.cs.introcs", module: "algs4-package"
     }
     implementation('org.slf4j:slf4j-api:2.0.18')

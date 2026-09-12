@@ -164,7 +164,7 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
   }
 
   public void setPreGap(Duration preGap, TimeCodeRounding rounding) {
-    setPreGap(preGap != null ? new TimeCode(preGap, rounding) : null);
+    setPreGap(preGap != null ? TimeCode.ofDuration(preGap, rounding) : null);
   }
 
   public void setPostGap(TimeCode postGap) {
@@ -172,7 +172,7 @@ public class CueTrack implements CueEntity, CueIterable<CueIndex> {
   }
 
   public void setPostGap(Duration postGap, TimeCodeRounding rounding) {
-    setPostGap(postGap != null ? new TimeCode(postGap, rounding) : null);
+    setPostGap(postGap != null ? TimeCode.ofDuration(postGap, rounding) : null);
   }
 
   @Override
