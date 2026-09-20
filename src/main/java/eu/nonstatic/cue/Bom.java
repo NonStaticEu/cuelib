@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import lombok.Getter;
 
 /**
- * see http://www.faqs.org/rfcs/rfc3629.html see http://www.unicode.org/unicode/faq/utf_bom.html
+ * see <a href="https://www.faqs.org/rfcs/rfc3629.html">...</a> see <a href="https://www.unicode.org/unicode/faq/utf_bom.html">...</a>
  */
 @Getter
 public enum Bom {
@@ -24,8 +24,8 @@ public enum Bom {
   BOM_UTF_8(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF}, StandardCharsets.UTF_8),
   BOM_UTF_16_LE(new byte[]{(byte) 0xFF, (byte) 0xFE}, StandardCharsets.UTF_16LE),
   BOM_UTF_16_BE(new byte[]{(byte) 0xFE, (byte) 0xFF}, StandardCharsets.UTF_16BE),
-  BOM_UTF_32_LE(new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00}, Charset.forName("UTF-32LE")),
-  BOM_UTF_32_BE(new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF}, Charset.forName("UTF-32BE"));
+  BOM_UTF_32_LE(new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00}, Charset.forName("UTF-32LE")), // StandardCharsets.UTF_32LE
+  BOM_UTF_32_BE(new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF}, Charset.forName("UTF-32BE")); // StandardCharsets.UTF_32BE
 
   private final byte[] bytes;
   private final Charset charset;
@@ -47,7 +47,7 @@ public enum Bom {
   private boolean matches(byte[] bytes) {
     boolean result = true;
     for (int i = 0; i < length() && result; i++) {
-      result &= (bytes[i] == this.bytes[i]);
+      result = (bytes[i] == this.bytes[i]);
     }
     return result;
   }
